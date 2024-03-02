@@ -32,6 +32,6 @@ func main() {
 }
 
 func usageRoot() {
-	fmt.Printf("usage: %s command(sync) options\n", cliName)
+	fmt.Printf("usage: %s commands(sync or stats) options\n", cliName)
 	os.Exit(1)
 }

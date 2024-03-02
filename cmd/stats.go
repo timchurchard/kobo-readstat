@@ -11,25 +11,50 @@ import (
 	"time"
 
 	"github.com/timchurchard/readstat/internal"
+	"github.com/timchurchard/readstat/pkg"
 )
 
 // Stats command reads local storage and produces stats
 func Stats(out io.Writer) int {
 	const (
-		// defaultEmpty   = ""
+		defaultEmpty   = ""
 		defaultStorage = "./readstat.json"
+		defaultYear    = 2024
 
 		usageStoragePath = "Path to local storage default: " + defaultStorage
+		usageMode        = "Mode html or text (default text)"
+		usageYear        = "Year to generate stats for (default 2023)"
+		usageOutPath     = "Path to output file (required for mode html)"
+
+		usageShowBooks    = "Show book title and details"
+		usageShowArticles = "Show pocket article title and details"
+		usageShowSessions = "Show reading sessions"
 	)
 	var (
-		storageFn string
+		storageFn    string
+		mode         string
+		year         int
+		outFn        string
+		showBooks    bool
+		showArticles bool
+		showSessions bool
 	)
 
-	// TODO year - what year to make stats for
-	// TODO mode - output text summary ? html ? etc
+	flag.StringVar(&mode, "mode", defaultEmpty, usageMode)
+	flag.StringVar(&mode, "m", defaultEmpty, usageMode)
 
 	flag.StringVar(&storageFn, "storage", defaultStorage, usageStoragePath)
 	flag.StringVar(&storageFn, "s", defaultStorage, usageStoragePath)
+
+	flag.StringVar(&outFn, "out", defaultEmpty, usageOutPath)
+	flag.StringVar(&outFn, "o", defaultEmpty, usageOutPath)
+
+	flag.IntVar(&year, "year", defaultYear, usageYear)
+	flag.IntVar(&year, "y", defaultYear, usageYear)
+
+	flag.BoolVar(&showBooks, "showbooks", true, usageShowBooks)
+	flag.BoolVar(&showArticles, "showarticles", false, usageShowArticles)
+	flag.BoolVar(&showSessions, "showsessions", false, usageShowSessions)
 
 	flag.Usage = func() {
 		fmt.Fprintf(out, "Usage of %s %s:\n", os.Args[0], os.Args[1])
@@ -39,64 +64,80 @@ func Stats(out io.Writer) int {
 
 	flag.Parse()
 
-	// Read Storage
-	storage, err := internal.OpenStorage(storageFn)
+	if _, err := os.Stat(storageFn); err != nil {
+		panic(fmt.Sprintf("storage not found: %v", err))
+	}
+
+	storage, err := internal.OpenStorageOrCreate(storageFn)
 	if err != nil {
 		panic(err)
 	}
 
-	// TC Stats proof of concept ?
+	stats := pkg.NewStatsForYear(storage, year)
 
-	yearStart, _ := time.Parse("2006-01-02", "2023-01-01")
-	yearEnd, _ := time.Parse("2006-01-02", "2024-01-01")
+	booksReadSeconds := stats.BooksSecondsReadYear()
+	booksReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", booksReadSeconds))
+	articlesReadSeconds := stats.ArticlesSecondsReadYear()
+	articlesReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", articlesReadSeconds))
 
-	// numFinished All books finished in 2023
-	numFinished := 0
-	numFinishedWords := 0
+	totalReadSeconds := booksReadSeconds + articlesReadSeconds
+	totalReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", totalReadSeconds))
 
-	totalReadingSeconds := 0
+	switch strings.ToLower(mode) {
+	case "html":
+		if outFn == "" {
+			fmt.Fprintf(out, "--out -o is required for mode html")
+			return 1
+		}
 
-	for cIdx := range storage.Contents {
-		for eIdx := range storage.Events[cIdx] {
-			eventTime, _ := time.Parse(internal.StorageTimeFmt, storage.Events[cIdx][eIdx].Time)
-			if inTimeSpan(yearStart, yearEnd, eventTime) {
+		err = pkg.NewChart(stats, year, outFn)
+		if err != nil {
+			panic(err)
+		}
 
-				switch storage.Events[cIdx][eIdx].EventName {
-				case "Finish":
-					numFinished += 1
-					numFinishedWords += storage.Contents[cIdx].Words
-					break
+	case "text":
+		fallthrough
+	default:
+		fmt.Printf("Year: %d\n", year)
+		fmt.Printf("Finished books\t\t\t: %d\n", len(stats.BooksFinishedYear()))
+		fmt.Printf("Finished articles\t\t: %d\n", len(stats.ArticlesFinishedYear()))
+		fmt.Printf("Total finished words\t\t: %s\n", humanizeInt(stats.WordsFinishedYear()))
+		fmt.Printf("Time reading books\t\t: %s\n", humanizeDuration(booksReadDuration))
+		fmt.Printf("Time reading articles\t\t: %s\n", humanizeDuration(articlesReadDuration))
+		fmt.Printf("Total time reading\t\t: %s\n", humanizeDuration(totalReadDuration))
 
-				case "Read":
-					totalReadingSeconds += storage.Events[cIdx][eIdx].Duration
+		fmt.Println("\n----------")
+
+		months := []string{"", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}
+		for idx := 1; idx <= 12; idx++ {
+			monthBookReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", stats.BooksSecondsReadMonth(idx)))
+			monthArticleReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", stats.ArticlesSecondsReadMonth(idx)))
+
+			fmt.Printf("\n%s %d - Finished books: %d, articles: %d, time spend reading books: %s and articles: %s\n", months[idx], year, len(stats.BooksFinishedMonth(idx)), len(stats.ArticlesFinishedMonth(idx)), humanizeDuration(monthBookReadDuration), humanizeDuration(monthArticleReadDuration))
+
+			if showBooks {
+				for _, finishedBook := range stats.BooksFinishedMonth(idx) {
+					duration := time.Duration(finishedBook.ReadSeconds()) * time.Second
+					fmt.Printf("\t finished book: %s - %s (Duration: %s over %d Sessions)\n", finishedBook.Title, finishedBook.Author, duration, finishedBook.NumSessions())
+
+					if showSessions {
+						for jdx := range finishedBook.Reads {
+							duration = time.Duration(finishedBook.Reads[jdx].Duration) * time.Second
+							fmt.Printf("\t\tAt %s for %s\n", finishedBook.Reads[jdx].Time, duration)
+						}
+					}
+				}
+			}
+
+			if showArticles {
+				for _, finishedArticle := range stats.ArticlesFinishedMonth(idx) {
+					fmt.Printf("\t finished article: %s - %s (%s)\n", finishedArticle.Title, finishedArticle.Author, finishedArticle.URL)
 				}
 			}
 		}
 	}
 
-	totalReadingDuration, err := time.ParseDuration(fmt.Sprintf("%ds", totalReadingSeconds))
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("In 2023 / Tim")
-	fmt.Printf("Finished books\t\t\t: %d\n", numFinished)
-	fmt.Printf("Finish books (words)\t\t: %s\n", humanizeInt(numFinishedWords))
-	fmt.Printf("Time spent reading books\t: %s", humanizeDuration(totalReadingDuration))
-
 	return 0
-}
-
-// inTimeSpan check time in range
-// From: https://stackoverflow.com/a/55093788
-func inTimeSpan(start, end, check time.Time) bool {
-	if start.Before(end) {
-		return !check.Before(start) && !check.After(end)
-	}
-	if start.Equal(end) {
-		return check.Equal(start)
-	}
-	return !start.After(check) || !end.Before(check)
 }
 
 // humanizeDuration humanizes time.Duration output to a meaningful value,
@@ -124,6 +165,8 @@ func humanizeDuration(duration time.Duration) string {
 		int64(remainingMinutes), int64(remainingSeconds))
 }
 
+// humanizeInt
+// Based on https://github.com/dustin/go-humanize/blob/v1.0.1/comma.go#L15
 func humanizeInt(num int) string {
 	parts := []string{"", "", "", "", "", "", ""}
 	j := len(parts) - 1
