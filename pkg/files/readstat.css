@@ -1,0 +1,29 @@
+h1 {
+  width: 80%;
+  justify-content: center;
+}
+
+body {
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+  width: 80%;
+  max-width: 1280px;
+}
+
+#container {
+  width: 100%;
+  max-width: 1280px;
+}
+
+#book-read-table {
+  width: 500px;
+  margin: 0 auto;
+}
+
+#book-read-count {
+  height: 400px;
+  max-width: 450px;
+  margin: 0 auto;
+}

@@ -1,0 +1,21 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head><title>{{ .Title }}</title>
+    <!-- Using chartcss - https://chartscss.org - https://cdn.jsdelivr.net/npm/charts.css/dist/charts.min.css -->
+    <style>{{ .ChartCSS }}</style>
+    <style>{{ .ReadstatCSS }}</style>
+</head><body>
+    <h1>{{ .Title }}</h1><br/>
+
+    <table id="container">
+        <tr>
+            <td width="50%">{{ .BookReadCountTable }}</td>
+            <td width="50%">{{ .BookReadCountChart }}</td>
+        <tr>
+        <tr>
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+</body></html>

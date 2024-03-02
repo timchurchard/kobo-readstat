@@ -1,0 +1,19 @@
+<table id="{{ .ID }}" class="charts-css {{ .Type }} show-heading show-labels">
+    <caption>{{ .Caption }}</caption>
+
+    <thead>
+    <tr>
+        <th scope="col">{{ .RowLabel }}</th>
+        <th scope="col">{{ .DataLabel }}</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    {{ range .Rows }}
+    <tr>
+        <th scope="row">{{ .Label }}</th>
+        <td style="--size:{{ .Data }};"></td>
+    </tr>
+    {{ end }}
+    </tbody>
+</table>
