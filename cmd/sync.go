@@ -6,8 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/timchurchard/readstat/internal"
-	"github.com/timchurchard/readstat/pkg"
+	"github.com/timchurchard/kobo-readstat/pkg"
 )
 
 // Sync command reads a Kobo database and creates/updates local storage
@@ -51,18 +50,8 @@ func Sync(out io.Writer) int {
 
 	defer db.Close()
 
-	contents, err := db.Contents()
-	if err != nil {
-		panic(err)
-	}
-
-	events, err := db.Events()
-	if err != nil {
-		panic(err)
-	}
-
 	// Create/Update Storage
-	storage, err := internal.OpenStorageOrCreate(storageFn)
+	storage, err := pkg.OpenStorageOrCreate(storageFn)
 	if err != nil {
 		panic(err)
 	}
@@ -73,22 +62,11 @@ func Sync(out io.Writer) int {
 		}
 	}()
 
-	device, model := db.Device()
-	storage.AddDevice(device, model)
-
-	for cIdx := range contents {
-		storage.AddContent(contents[cIdx].ID, contents[cIdx].Title, contents[cIdx].Author, contents[cIdx].URL, contents[cIdx].TotalWords(), contents[cIdx].IsBook, contents[cIdx].Finished)
-	}
-
-	for eIdx := range events {
-		if events[eIdx].EventType == pkg.ReadEvent {
-			for sIdx := range events[eIdx].ReadingSessions {
-				durationSecs := events[eIdx].ReadingSessions[sIdx].UnixEnd - events[eIdx].ReadingSessions[sIdx].UnixStart
-				storage.AddEvent(events[eIdx].BookID, device, events[eIdx].EventType.String(), events[eIdx].ReadingSessions[sIdx].Start, durationSecs)
-			}
-		} else {
-			storage.AddEvent(events[eIdx].BookID, device, events[eIdx].EventType.String(), events[eIdx].Time, 0)
-		}
+	// Do the sync!
+	err = pkg.Sync(db, storage)
+	if err != nil {
+		fmt.Printf("Error syncing: %v\n", err)
+		return 1
 	}
 
 	return 0
