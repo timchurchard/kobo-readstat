@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/timchurchard/readstat/cmd"
+	"github.com/timchurchard/kobo-readstat/cmd"
 )
 
-const cliName = "readstat"
+const cliName = "kobo-readstat"
 
 func main() {
 	if len(os.Args) < 2 {
