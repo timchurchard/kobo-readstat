@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 // getDevice read the .kobo/version file for device id
@@ -62,18 +60,6 @@ func getModel(device string) string {
 	return ""
 }
 
-// cleanContentFilename takes a "file:///mnt/onboard/dir/file.epub" and returns "dir/file.epub"
-func cleanContentFilename(fn string) string {
-	startPos := strings.Index(fn, KoboFilenamePrefix)
-
-	if startPos == -1 {
-		// Pocket articles have an ID so no cleaning needed
-		return fn
-	}
-
-	return fn[startPos+len(KoboFilenamePrefix):]
-}
-
 // splitContentFilename takes a "/mnt/onboard/dir/file.epub!!part.html" and returns "dir/file.epub" and "part.html"
 func splitContentFilename(fn string) (string, string) {
 	startPos := strings.Index(fn, KoboFilenamePrefix)
@@ -112,9 +98,4 @@ func splitContentFilename(fn string) (string, string) {
 	}
 
 	return fn[startPos:partPos], fn[partPos+partLen:]
-}
-
-func isValidUUID(u string) bool {
-	_, err := uuid.Parse(u)
-	return err == nil // todo: good enough?
 }

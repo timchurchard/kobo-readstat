@@ -4,8 +4,6 @@ package pkg
 import (
 	"fmt"
 	"time"
-
-	"github.com/timchurchard/readstat/internal"
 )
 
 type Stats interface {
@@ -158,7 +156,7 @@ type StatsRead struct {
 }
 
 // NewStatsForYear take a Storage and calculate the stats for a given year (4 character e.g. 2023 int)
-func NewStatsForYear(storage internal.Storage, year int) YearStats {
+func NewStatsForYear(storage Storage, year int) YearStats {
 	months := make([]MonthStats, 13) // We'll use 1..12 as the range
 	for idx := 1; idx <= 12; idx++ {
 		months[idx].FinishedBooks = []*StatsBook{}
@@ -166,24 +164,26 @@ func NewStatsForYear(storage internal.Storage, year int) YearStats {
 	}
 
 	// Books in months
-	for cIdx := range storage.Contents {
-		if storage.Contents[cIdx].IsBook {
+	for _, content := range storage.Contents() {
+		events := storage.Events(content.ID)
+
+		if content.IsBook {
 			// First pass finished books
-			for eIdx := range storage.Events[cIdx] {
-				eventTime, err := time.Parse(internal.StorageTimeFmt, storage.Events[cIdx][eIdx].Time)
+			for eIdx := range events {
+				eventTime, err := time.Parse(StorageTimeFmt, events[eIdx].Time)
 				if err != nil {
 					panic(err)
 				}
 
 				inYear, monthNo := isInYearAndMonth(year, eventTime)
 				if inYear {
-					switch storage.Events[cIdx][eIdx].EventName {
-					case "Finish":
+					switch events[eIdx].EventName {
+					case FinishEvent.String():
 						months[monthNo].AddFinishedBook(StatsBook{
-							BookID:     cIdx,
-							Title:      storage.Contents[cIdx].Title,
-							Author:     storage.Contents[cIdx].Author,
-							Words:      storage.Contents[cIdx].Words,
+							BookID:     content.ID,
+							Title:      content.Title,
+							Author:     content.Author,
+							Words:      content.Words,
 							IsFinished: true,
 							Reads:      nil,
 						})
@@ -192,18 +192,18 @@ func NewStatsForYear(storage internal.Storage, year int) YearStats {
 			}
 
 			// Second pass any read book ensure exists in the right months
-			for eIdx := range storage.Events[cIdx] {
-				eventTime, _ := time.Parse(internal.StorageTimeFmt, storage.Events[cIdx][eIdx].Time)
+			for eIdx := range events {
+				eventTime, _ := time.Parse(StorageTimeFmt, events[eIdx].Time)
 
 				inYear, monthNo := isInYearAndMonth(year, eventTime)
 				if inYear {
-					switch storage.Events[cIdx][eIdx].EventName {
-					case "Read":
+					switch events[eIdx].EventName {
+					case ReadEvent.String():
 						months[monthNo].AddBook(StatsBook{
-							BookID:     cIdx,
-							Title:      storage.Contents[cIdx].Title,
-							Author:     storage.Contents[cIdx].Author,
-							Words:      storage.Contents[cIdx].Words,
+							BookID:     content.ID,
+							Title:      content.Title,
+							Author:     content.Author,
+							Words:      content.Words,
 							IsFinished: false,
 							Reads:      []StatsRead{},
 						})
@@ -212,42 +212,42 @@ func NewStatsForYear(storage internal.Storage, year int) YearStats {
 			}
 
 			// Third pass reading sessions!
-			for eIdx := range storage.Events[cIdx] {
-				eventTime, _ := time.Parse(internal.StorageTimeFmt, storage.Events[cIdx][eIdx].Time)
+			for eIdx := range events {
+				eventTime, _ := time.Parse(StorageTimeFmt, events[eIdx].Time)
 
 				inYear, monthNo := isInYearAndMonth(year, eventTime)
 				if inYear {
-					switch storage.Events[cIdx][eIdx].EventName {
-					case "Read":
-						months[monthNo].AddReading(cIdx, storage.Events[cIdx][eIdx].Time, storage.Events[cIdx][eIdx].Duration)
+					switch events[eIdx].EventName {
+					case ReadEvent.String():
+						months[monthNo].AddReading(content.ID, events[eIdx].Time, events[eIdx].Duration)
 					}
 				}
 			}
 		} else {
-			for eIdx := range storage.Events[cIdx] {
-				eventTime, _ := time.Parse(internal.StorageTimeFmt, storage.Events[cIdx][eIdx].Time)
+			for eIdx := range events {
+				eventTime, _ := time.Parse(StorageTimeFmt, events[eIdx].Time)
 
 				inYear, monthNo := isInYearAndMonth(year, eventTime)
 				if inYear {
-					switch storage.Events[cIdx][eIdx].EventName {
-					case "Read":
+					switch events[eIdx].EventName {
+					case ReadEvent.String():
 						sb := StatsBook{
-							BookID:     cIdx,
-							Title:      storage.Contents[cIdx].Title,
-							Author:     storage.Contents[cIdx].Author,
-							URL:        storage.Contents[cIdx].URL,
-							Words:      storage.Contents[cIdx].Words,
+							BookID:     content.ID,
+							Title:      content.Title,
+							Author:     content.Author,
+							URL:        content.URL,
+							Words:      content.Words,
 							IsBook:     false,
-							IsFinished: storage.Contents[cIdx].IsFinished,
+							IsFinished: content.IsFinished,
 							Reads:      []StatsRead{},
 						}
 
-						if storage.Contents[cIdx].IsFinished {
+						if content.IsFinished {
 							months[monthNo].AddFinishedArticle(sb)
 						}
 
 						months[monthNo].AddArticle(sb)
-						months[monthNo].AddReading(cIdx, storage.Events[cIdx][eIdx].Time, storage.Events[cIdx][eIdx].Duration)
+						months[monthNo].AddReading(content.ID, events[eIdx].Time, events[eIdx].Duration)
 					}
 				}
 			}

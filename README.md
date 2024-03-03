@@ -1,4 +1,4 @@
-# readstat
+# kobo-readstat
 
 ![Build Status](https://github.com/timchurchard/readstat/workflows/Test/badge.svg)
 ![Coverage](https://img.shields.io/badge/Coverage-31.4%25-yellow)
@@ -6,16 +6,16 @@
 [![Release](https://img.shields.io/github/release/timchurchard/readstat.svg)](https://github.com/timchurchard/readstat/releases/latest)
 [![GitHub Releases Stats of readstat](https://img.shields.io/github/downloads/timchurchard/readstat/total.svg?logo=github)](https://somsubhra.github.io/github-release-stats/?username=timchurchard&repository=readstat)
 
-Attempt to collect and show reading statistics from e-reader devicess, like [Kobo](https://uk.kobobooks.com/collections/ereaders).  This is a proof of concept using my two devices (Kobo Clara 2E and Libra 2 with database version 174).
+Attempt to collect and show reading statistics from [Kobo](https://uk.kobobooks.com/collections/ereaders) e-reader devices.  This is a proof of concept using my two devices (Kobo Clara 2E and Libra 2 with database version 174).
 
 ## Usage
 
-Use the `sync` command to read the Kobo database. Syncing updates a local json file. And use the `stats` command to make stats.
+Use the `sync` command to read the Kobo database and write a local json file. And use the `stats` command to read the local json file to make statistics.
 
 ```text
-./readstat sync -d ./testfiles/20231219/libra2/KoboReader.sqlite -s tc_readstat.json
+./kobo-readstat sync -d ./testfiles/20231219/libra2/KoboReader.sqlite -s tc_readstat.json
 
-./readstat stats -s ./tc_readstat.json -y 2023
+./kobo-readstat stats -s ./tc_readstat.json -y 2023
 Year: 2023
 Finished books			: 19
 Finished articles		: 280
