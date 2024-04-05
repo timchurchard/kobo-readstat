@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ncruces/go-sqlite3"
+	sqlite3 "github.com/ncruces/go-sqlite3"
 	_ "github.com/ncruces/go-sqlite3/embed"
 
-	"github.com/timchurchard/readstat/internal"
+	"github.com/timchurchard/kobo-readstat/internal"
 )
 
 type KoboDatabase interface {
@@ -256,11 +256,11 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 			contentType := ""
 			for key, val := range v {
 				if key == "ContentType" {
-					switch val.(type) {
+					switch val := val.(type) {
 					case string:
-						contentType = val.(string)
+						contentType = val
 					case []uint8:
-						contentType = string(val.([]uint8))
+						contentType = string(val)
 					}
 				}
 			}

@@ -10,8 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/timchurchard/readstat/internal"
-	"github.com/timchurchard/readstat/pkg"
+	"github.com/timchurchard/kobo-readstat/pkg"
 )
 
 // Stats command reads local storage and produces stats
@@ -68,7 +67,7 @@ func Stats(out io.Writer) int {
 		panic(fmt.Sprintf("storage not found: %v", err))
 	}
 
-	storage, err := internal.OpenStorageOrCreate(storageFn)
+	storage, err := pkg.OpenStorageOrCreate(storageFn)
 	if err != nil {
 		panic(err)
 	}

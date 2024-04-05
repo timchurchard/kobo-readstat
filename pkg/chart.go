@@ -6,7 +6,6 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
-
 	"text/template"
 )
 

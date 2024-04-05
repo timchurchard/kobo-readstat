@@ -16,4 +16,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     - name: Test
-      run: go test ./...
+      run: make test
+    - name: Lint
+      run: make lint
