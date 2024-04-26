@@ -22,6 +22,11 @@ type KoboDatabase interface {
 	Contents() ([]KoboBook, error)
 	Events() ([]KoboEvent, error)
 
+	Shelves() ([]KoboShelf, error)
+	ShelfContents() ([]KoboShelfContent, error)
+
+	Bookmarks() ([]KoboBookmark, error)
+
 	Close() error
 }
 
@@ -166,7 +171,7 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 		eventReadStart   = 1020
 		eventReadEnd     = 1021
 		eventFinished    = 80
-		eventFinishedAlt = 5 // todo: I think this is 'ended reading session' e.g. switched book not finished book
+		eventFinishedAlt = 5
 		eventSession     = 46
 
 		// minReadSessionSecs may need tweaking. Minimum reading session to include in stats
@@ -198,15 +203,15 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 		}).ReadQStringQVariantAssociative()
 		if err != nil {
 			// Ignore EOF & unimplemented errors when decoding extra data
-			if !errors.Is(err, io.EOF) && err.Error() != "unimplemented type 20" {
-				fmt.Println(err)
+			if !errors.Is(err, io.EOF) && err.Error() != "unimplemented type 20" && err.Error() != "unexpected EOF" {
+				fmt.Println("ReadQStringQVariantAssociative err: ", err)
 			}
 		}
 
 		// first := stmt.ColumnText(1)
 		last := stmt.ColumnText(2)
 		// count := stmt.ColumnInt(3)
-		lastTime, _ := time.Parse(KoboTimeFmt, last)
+		lastTime := k.parseTimeOrZero(last)
 
 		// Try to get filename from cID
 		cID := stmt.ColumnText(4)
@@ -235,6 +240,7 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 			result = append(result, KoboEvent{BookID: fn, EventType: Progress75Event, Time: lastTime})
 
 		case eventReadStart:
+			// if _, exists := v["eventTimestamps"]; exists { // Panic if no BLOB data on the ReadStarts
 			data := v["eventTimestamps"].([]interface{})
 			startTimes[fn] = make([]uint32, len(data))
 			for idx := range data {
@@ -242,13 +248,14 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 			}
 
 		case eventReadEnd:
+			// if _, exists := v["eventTimestamps"]; exists { // Panic if no BLOB data on the ReadEnds
 			data := v["eventTimestamps"].([]interface{})
 			endTimes[fn] = make([]uint32, len(data))
 			for idx := range data {
 				endTimes[fn][idx] = data[idx].(uint32)
 			}
 
-		case eventFinished:
+		case eventFinished, eventFinishedAlt:
 			result = append(result, KoboEvent{BookID: fn, EventType: FinishEvent, Time: lastTime})
 
 		case eventSession:
@@ -335,4 +342,111 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 
 func (k koboDatabase) Close() error {
 	return k.conn.Close()
+}
+
+func (k koboDatabase) Shelves() ([]KoboShelf, error) {
+	stmt, _, err := k.conn.Prepare(`select Id,Name,InternalName,Type,_IsDeleted from Shelf ;`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	result := []KoboShelf{}
+
+	for stmt.Step() {
+		result = append(result, KoboShelf{
+			ID:           stmt.ColumnText(0),
+			Name:         stmt.ColumnText(1),
+			InternalName: stmt.ColumnText(2),
+			Type:         stmt.ColumnText(3),
+			IsDeleted:    stmt.ColumnBool(4),
+		})
+	}
+
+	if err := stmt.Err(); err != nil {
+		return nil, err
+	}
+
+	err = stmt.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (k koboDatabase) ShelfContents() ([]KoboShelfContent, error) {
+	stmt, _, err := k.conn.Prepare(`select ShelfName,ContentId,_IsDeleted from ShelfContent ;`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	result := []KoboShelfContent{}
+
+	for stmt.Step() {
+		result = append(result, KoboShelfContent{
+			ShelfName: stmt.ColumnText(0),
+			ContentID: stmt.ColumnText(1),
+			IsDeleted: stmt.ColumnBool(2),
+		})
+	}
+
+	if err := stmt.Err(); err != nil {
+		return nil, err
+	}
+
+	err = stmt.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (k koboDatabase) Bookmarks() ([]KoboBookmark, error) {
+	stmt, _, err := k.conn.Prepare(`select BookmarkID,VolumeID,ContentID,StartContainerPath,StartContainerChildIndex,StartOffset,EndOffset,Text,Annotation,DateCreated,DateModified,Type from Bookmark ;`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	result := make([]KoboBookmark, 0)
+
+	for stmt.Step() {
+		result = append(result, KoboBookmark{
+			ID:          stmt.ColumnText(0),
+			VolumeID:    stmt.ColumnText(1),
+			ContentID:   stmt.ColumnText(2),
+			BookPath:    stmt.ColumnText(3),
+			Index:       stmt.ColumnInt(4),
+			StartOffset: stmt.ColumnInt(5),
+			EndOffset:   stmt.ColumnInt(6),
+			Text:        stmt.ColumnText(7),
+			Annotation:  stmt.ColumnText(8),
+			Created:     k.parseTimeOrZero(stmt.ColumnText(9)),
+			Modified:    k.parseTimeOrZero(stmt.ColumnText(10)),
+			Type:        stmt.ColumnText(11),
+		})
+	}
+
+	if err := stmt.Err(); err != nil {
+		return nil, err
+	}
+
+	err = stmt.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (k koboDatabase) parseTimeOrZero(ts string) time.Time {
+	t, err := time.Parse(KoboTimeFmt, ts)
+	if err != nil {
+		return time.Time{}
+	}
+
+	return t
 }

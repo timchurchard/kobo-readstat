@@ -24,7 +24,6 @@ func getDevice(fn string) (string, error) {
 
 // getModel simple lookup for device to human readable model
 func getModel(device string) string {
-
 	// models from https://help.kobo.com/hc/en-us/articles/360019676973-Identify-your-Kobo-eReader-or-Kobo-tablet
 	models := map[string]string{
 		"N605": "Kobo Elipsa 2E",

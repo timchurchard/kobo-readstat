@@ -4,9 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -100,10 +98,10 @@ func Stats(out io.Writer) int {
 		fmt.Printf("Year: %d\n", year)
 		fmt.Printf("Finished books\t\t\t: %d\n", len(stats.BooksFinishedYear()))
 		fmt.Printf("Finished articles\t\t: %d\n", len(stats.ArticlesFinishedYear()))
-		fmt.Printf("Total finished words\t\t: %s\n", humanizeInt(stats.WordsFinishedYear()))
-		fmt.Printf("Time reading books\t\t: %s\n", humanizeDuration(booksReadDuration))
-		fmt.Printf("Time reading articles\t\t: %s\n", humanizeDuration(articlesReadDuration))
-		fmt.Printf("Total time reading\t\t: %s\n", humanizeDuration(totalReadDuration))
+		fmt.Printf("Total finished words\t\t: %s\n", pkg.HumanizeInt(stats.WordsFinishedYear()))
+		fmt.Printf("Time reading books\t\t: %s\n", pkg.HumanizeDuration(booksReadDuration))
+		fmt.Printf("Time reading articles\t\t: %s\n", pkg.HumanizeDuration(articlesReadDuration))
+		fmt.Printf("Total time reading\t\t: %s\n", pkg.HumanizeDuration(totalReadDuration))
 
 		fmt.Println("\n----------")
 
@@ -112,7 +110,7 @@ func Stats(out io.Writer) int {
 			monthBookReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", stats.BooksSecondsReadMonth(idx)))
 			monthArticleReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", stats.ArticlesSecondsReadMonth(idx)))
 
-			fmt.Printf("\n%s %d - Finished books: %d, articles: %d, time spend reading books: %s and articles: %s\n", months[idx], year, len(stats.BooksFinishedMonth(idx)), len(stats.ArticlesFinishedMonth(idx)), humanizeDuration(monthBookReadDuration), humanizeDuration(monthArticleReadDuration))
+			fmt.Printf("\n%s %d - Finished books: %d, articles: %d, time spend reading books: %s and articles: %s\n", months[idx], year, len(stats.BooksFinishedMonth(idx)), len(stats.ArticlesFinishedMonth(idx)), pkg.HumanizeDuration(monthBookReadDuration), pkg.HumanizeDuration(monthArticleReadDuration))
 
 			if showBooks {
 				for _, finishedBook := range stats.BooksFinishedMonth(idx) {
@@ -137,45 +135,4 @@ func Stats(out io.Writer) int {
 	}
 
 	return 0
-}
-
-// humanizeDuration humanizes time.Duration output to a meaningful value,
-// golang's default “time.Duration“ output is badly formatted and unreadable.
-// From: https://gist.github.com/harshavardhana/327e0577c4fed9211f65
-func humanizeDuration(duration time.Duration) string {
-	if duration.Seconds() < 60.0 {
-		return fmt.Sprintf("%d seconds", int64(duration.Seconds()))
-	}
-	if duration.Minutes() < 60.0 {
-		remainingSeconds := math.Mod(duration.Seconds(), 60)
-		return fmt.Sprintf("%d minutes %d seconds", int64(duration.Minutes()), int64(remainingSeconds))
-	}
-	if duration.Hours() < 24.0 {
-		remainingMinutes := math.Mod(duration.Minutes(), 60)
-		remainingSeconds := math.Mod(duration.Seconds(), 60)
-		return fmt.Sprintf("%d hours %d minutes %d seconds",
-			int64(duration.Hours()), int64(remainingMinutes), int64(remainingSeconds))
-	}
-	remainingHours := math.Mod(duration.Hours(), 24)
-	remainingMinutes := math.Mod(duration.Minutes(), 60)
-	remainingSeconds := math.Mod(duration.Seconds(), 60)
-	return fmt.Sprintf("%d days %d hours %d minutes %d seconds",
-		int64(duration.Hours()/24), int64(remainingHours),
-		int64(remainingMinutes), int64(remainingSeconds))
-}
-
-// humanizeInt
-// Based on https://github.com/dustin/go-humanize/blob/v1.0.1/comma.go#L15
-func humanizeInt(num int) string {
-	parts := []string{"", "", "", "", "", "", ""}
-	j := len(parts) - 1
-
-	for num > 999 {
-		parts[j] = strconv.FormatInt(int64(num%1000), 10)
-		num = num / 1000
-		j--
-	}
-
-	parts[j] = strconv.Itoa(int(num))
-	return strings.Join(parts[j:], ",")
 }

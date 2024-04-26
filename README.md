@@ -12,21 +12,30 @@ Attempt to collect and show reading statistics from [Kobo](https://uk.kobobooks.
 
 Use the `sync` command to read the Kobo database and write a local json file. And use the `stats` command to read the local json file to make statistics.
 
-```text
+```shell
 ./kobo-readstat sync -d ./testfiles/20231219/libra2/KoboReader.sqlite -s tc_readstat.json
+```
 
+And the `stats` command to show stats in text or html
+
+```text
+./kobo-readstat stats -y 2023 -s ./tc_readstat.json --mode html --out tc_2023.html
+```
+![screenshot of html reading stats](tc_2023.png "2023")
+
+```text
 ./kobo-readstat stats -s ./tc_readstat.json -y 2023
 Year: 2023
-Finished books			: 19
-Finished articles		: 280
-Total finished words		: 3,111,402
+Finished books			: 20
+Finished articles		: 286
+Total finished words		: 655,876
 Time reading books		: 10 days 14 hours 19 minutes 27 seconds
 Time reading articles		: 1 days 21 hours 50 minutes 52 seconds
 Total time reading		: 12 days 12 hours 10 minutes 19 seconds
 
 ----------
 
-January 2023 - Finished books: 2, articles: 14, time spend reading books: 1 days 4 hours 33 minutes 43 seconds and articles: 2 hours 25 minutes 52 seconds
+January 2023 - Finished books: 2, articles: 16, time spend reading books: 1 days 4 hours 33 minutes 43 seconds and articles: 2 hours 25 minutes 52 seconds
 	 finished book: The Subtle Knife - Philip Pullman (Duration: 9h54m9s over 45 Sessions)
 	 finished book: Northern Lights - Philip Pullman (Duration: 7h42m12s over 41 Sessions)
 
@@ -40,30 +49,31 @@ April 2023 - Finished books: 2, articles: 26, time spend reading books: 15 hours
 	 finished book: Lullaby - Chuck Palahniuk (Duration: 7h11m50s over 51 Sessions)
 
 May 2023 - Finished books: 2, articles: 26, time spend reading books: 11 hours 9 minutes 55 seconds and articles: 4 hours 19 minutes 30 seconds
-	 finished book: Star's Reach: A Novel of the Deindustrial Future - John Michael Greer (Duration: 1h15m8s over 11 Sessions)
 	 finished book: Eating Animals - Jonathan Safran Foer (Duration: 2h35m4s over 19 Sessions)
+	 finished book: Star's Reach: A Novel of the Deindustrial Future - John Michael Greer (Duration: 1h15m8s over 11 Sessions)
 
-June 2023 - Finished books: 1, articles: 43, time spend reading books: 5 hours 55 minutes 3 seconds and articles: 8 hours 3 minutes 47 seconds
+June 2023 - Finished books: 1, articles: 44, time spend reading books: 5 hours 55 minutes 3 seconds and articles: 8 hours 3 minutes 47 seconds
 	 finished book: Everything's Eventual: 14 Dark Tales - Stephen King (Duration: 1h18m4s over 11 Sessions)
 
 July 2023 - Finished books: 2, articles: 29, time spend reading books: 1 days 11 hours 0 minutes 45 seconds and articles: 4 hours 42 minutes 25 seconds
-	 finished book: The Three-Body Problem, No. 2: Dark Forest - Liu Cixin (Duration: 22h3m16s over 128 Sessions)
 	 finished book: The Gallows Pole - Benjamin Myers (Duration: 42m15s over 5 Sessions)
+	 finished book: The Three-Body Problem, No. 2: Dark Forest - Liu Cixin (Duration: 22h3m16s over 128 Sessions)
 
 August 2023 - Finished books: 2, articles: 15, time spend reading books: 22 hours 47 minutes 51 seconds and articles: 2 hours 1 minutes 44 seconds
-	 finished book: Molesworth - Geoffrey Willans (Duration: 5m39s over 1 Sessions)
 	 finished book: Death's End - Cixin Liu (Duration: 15h32m16s over 81 Sessions)
+	 finished book: Molesworth - Geoffrey Willans (Duration: 5m39s over 1 Sessions)
 
 September 2023 - Finished books: 2, articles: 16, time spend reading books: 1 days 21 hours 2 minutes 25 seconds and articles: 2 hours 45 minutes 22 seconds
-	 finished book: The Outsider: A Novel - Stephen King (Duration: 21h39m37s over 102 Sessions)
 	 finished book: Altered Carbon - Richard K. K. Morgan (Duration: 14h40m47s over 94 Sessions)
+	 finished book: The Outsider: A Novel - Stephen King (Duration: 21h39m37s over 102 Sessions)
 
-October 2023 - Finished books: 2, articles: 19, time spend reading books: 17 hours 0 minutes 28 seconds and articles: 3 hours 41 minutes 1 seconds
+October 2023 - Finished books: 2, articles: 22, time spend reading books: 17 hours 0 minutes 28 seconds and articles: 3 hours 41 minutes 1 seconds
 	 finished book: Eating Animals - Jonathan Safran Foer (Duration: 0s over 0 Sessions)
 	 finished book: Lullaby - Chuck Palahniuk (Duration: 0s over 0 Sessions)
 
-November 2023 - Finished books: 1, articles: 23, time spend reading books: 1 days 2 hours 49 minutes 36 seconds and articles: 3 hours 46 minutes 29 seconds
+November 2023 - Finished books: 2, articles: 23, time spend reading books: 1 days 2 hours 49 minutes 36 seconds and articles: 3 hours 46 minutes 29 seconds
 	 finished book: Mr Mercedes - Stephen King (Duration: 4h56m53s over 25 Sessions)
+	 finished book: The Future - Naomi Alderman (Duration: 12h28m9s over 68 Sessions)
 
 December 2023 - Finished books: 2, articles: 20, time spend reading books: 1 days 3 hours 20 minutes 17 seconds and articles: 2 hours 44 minutes 16 seconds
 	 finished book: The Green Mile - Stephen King (Duration: 8h53m35s over 47 Sessions)
