@@ -68,9 +68,9 @@ func TestNewStatsForYear(t *testing.T) {
 			{EventName: "Finish", Time: "2020-02-03T03:02:03.000", Duration: 0, Device: testDeviceAID},
 		})
 
-		yearStats := NewStatsForYear(testStorage, 2020)
+		yearStats := NewStats(testStorage)
 
-		finYear := yearStats.BooksFinishedYear()
+		finYear := yearStats.BooksFinishedYear(2020)
 		assert.Len(t, finYear, 1)
 		assert.Equal(t, testBookAID, finYear[0].BookID)
 		assert.Len(t, finYear[0].Reads, 3)

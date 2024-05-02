@@ -70,11 +70,11 @@ func Stats(out io.Writer) int {
 		panic(err)
 	}
 
-	stats := pkg.NewStatsForYear(storage, year)
+	stats := pkg.NewStats(storage)
 
-	booksReadSeconds := stats.BooksSecondsReadYear()
+	booksReadSeconds := stats.BooksSecondsReadYear(year)
 	booksReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", booksReadSeconds))
-	articlesReadSeconds := stats.ArticlesSecondsReadYear()
+	articlesReadSeconds := stats.ArticlesSecondsReadYear(year)
 	articlesReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", articlesReadSeconds))
 
 	totalReadSeconds := booksReadSeconds + articlesReadSeconds
@@ -96,9 +96,8 @@ func Stats(out io.Writer) int {
 		fallthrough
 	default:
 		fmt.Printf("Year: %d\n", year)
-		fmt.Printf("Finished books\t\t\t: %d\n", len(stats.BooksFinishedYear()))
-		fmt.Printf("Finished articles\t\t: %d\n", len(stats.ArticlesFinishedYear()))
-		fmt.Printf("Total finished words\t\t: %s\n", pkg.HumanizeInt(stats.WordsFinishedYear()))
+		fmt.Printf("Finished books\t\t\t: %d\n", len(stats.BooksFinishedYear(year)))
+		fmt.Printf("Finished articles\t\t: %d\n", len(stats.ArticlesFinishedYear(year)))
 		fmt.Printf("Time reading books\t\t: %s\n", pkg.HumanizeDuration(booksReadDuration))
 		fmt.Printf("Time reading articles\t\t: %s\n", pkg.HumanizeDuration(articlesReadDuration))
 		fmt.Printf("Total time reading\t\t: %s\n", pkg.HumanizeDuration(totalReadDuration))
@@ -107,13 +106,13 @@ func Stats(out io.Writer) int {
 
 		months := []string{"", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}
 		for idx := 1; idx <= 12; idx++ {
-			monthBookReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", stats.BooksSecondsReadMonth(idx)))
-			monthArticleReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", stats.ArticlesSecondsReadMonth(idx)))
+			monthBookReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", stats.BooksSecondsReadMonth(year, idx)))
+			monthArticleReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", stats.ArticlesSecondsReadMonth(year, idx)))
 
-			fmt.Printf("\n%s %d - Finished books: %d, articles: %d, time spend reading books: %s and articles: %s\n", months[idx], year, len(stats.BooksFinishedMonth(idx)), len(stats.ArticlesFinishedMonth(idx)), pkg.HumanizeDuration(monthBookReadDuration), pkg.HumanizeDuration(monthArticleReadDuration))
+			fmt.Printf("\n%s %d - Finished books: %d, articles: %d, time spend reading books: %s and articles: %s\n", months[idx], year, len(stats.BooksFinishedMonth(year, idx)), len(stats.ArticlesFinishedMonth(year, idx)), pkg.HumanizeDuration(monthBookReadDuration), pkg.HumanizeDuration(monthArticleReadDuration))
 
 			if showBooks {
-				for _, finishedBook := range stats.BooksFinishedMonth(idx) {
+				for _, finishedBook := range stats.BooksFinishedMonth(year, idx) {
 					duration := time.Duration(finishedBook.ReadSeconds()) * time.Second
 					fmt.Printf("\t finished book: %s - %s (Duration: %s over %d Sessions)\n", finishedBook.Title, finishedBook.Author, duration, finishedBook.NumSessions())
 
@@ -127,7 +126,7 @@ func Stats(out io.Writer) int {
 			}
 
 			if showArticles {
-				for _, finishedArticle := range stats.ArticlesFinishedMonth(idx) {
+				for _, finishedArticle := range stats.ArticlesFinishedMonth(year, idx) {
 					fmt.Printf("\t finished article: %s - %s (%s)\n", finishedArticle.Title, finishedArticle.Author, finishedArticle.URL)
 				}
 			}

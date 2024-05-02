@@ -56,7 +56,7 @@ const (
 )
 
 // NewChart read the stats and write single page html to filename
-func NewChart(stats YearStats, year int, filename string) error {
+func NewChart(stats Stats, year int, filename string) error {
 	var err error
 
 	months := []string{"", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}
@@ -67,8 +67,8 @@ func NewChart(stats YearStats, year int, filename string) error {
 		Title: fmt.Sprintf(titleFmt, year),
 		// Description: "reading stats todo description",
 
-		BooksRead:    len(stats.BooksFinishedYear()),
-		ArticlesRead: len(stats.ArticlesFinishedYear()),
+		BooksRead:    len(stats.BooksFinishedYear(year)),
+		ArticlesRead: len(stats.ArticlesFinishedYear(year)),
 	}
 
 	bookReadCount := []int{}
@@ -78,7 +78,7 @@ func NewChart(stats YearStats, year int, filename string) error {
 	totalReadTime := []float32{}
 
 	for idx := 1; idx <= 12; idx++ {
-		finBooks := stats.BooksFinishedMonth(idx)
+		finBooks := stats.BooksFinishedMonth(year, idx)
 		for jdx := range finBooks {
 			totalReadTime = append(totalReadTime, float32(finBooks[jdx].ReadSeconds()))
 
@@ -91,7 +91,7 @@ func NewChart(stats YearStats, year int, filename string) error {
 			})
 		}
 
-		finArts := stats.ArticlesFinishedMonth(idx)
+		finArts := stats.ArticlesFinishedMonth(year, idx)
 		for jdx := range finArts {
 			totalReadTime[idx-1] += float32(finArts[jdx].ReadSeconds())
 
@@ -104,12 +104,12 @@ func NewChart(stats YearStats, year int, filename string) error {
 			})
 		}
 
-		bookReadCount = append(bookReadCount, len(stats.BooksFinishedMonth(idx)))
-		articleReadCount = append(articleReadCount, len(stats.ArticlesFinishedMonth(idx)))
+		bookReadCount = append(bookReadCount, len(stats.BooksFinishedMonth(year, idx)))
+		articleReadCount = append(articleReadCount, len(stats.ArticlesFinishedMonth(year, idx)))
 	}
 
-	data.BookReadingTime = HumanizeDurationShort(time.Second * time.Duration(stats.BooksSecondsReadYear()))
-	data.ArticleReadingTime = HumanizeDurationShort(time.Second * time.Duration(stats.ArticlesSecondsReadYear()))
+	data.BookReadingTime = HumanizeDurationShort(time.Second * time.Duration(stats.BooksSecondsReadYear(year)))
+	data.ArticleReadingTime = HumanizeDurationShort(time.Second * time.Duration(stats.ArticlesSecondsReadYear(year)))
 
 	bC, _ := json.Marshal(bookReadCount)
 	data.BookReadCount = string(bC)
