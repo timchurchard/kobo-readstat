@@ -4,16 +4,17 @@ package pkg
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"time"
 
-	"github.com/ncruces/go-sqlite3"
+	sqlite3 "github.com/ncruces/go-sqlite3"
 	_ "github.com/ncruces/go-sqlite3/embed"
 
-	"github.com/timchurchard/readstat/internal"
+	"github.com/timchurchard/kobo-readstat/internal"
 )
 
 type KoboDatabase interface {
@@ -21,6 +22,11 @@ type KoboDatabase interface {
 
 	Contents() ([]KoboBook, error)
 	Events() ([]KoboEvent, error)
+
+	Shelves() ([]KoboShelf, error)
+	ShelfContents() ([]KoboShelfContent, error)
+
+	Bookmarks() ([]KoboBookmark, error)
 
 	Close() error
 }
@@ -48,6 +54,9 @@ const (
 	// todo: not reliable
 	// localfileType  = "9" // localfileType seems to cover local files e.g. all my side-loaded calibre (k)epubs
 	// localfilePartType = "899" // localfilePartType seems to cover html files inside epubs
+
+	extraDataReadingSeconds          = "ExtraDataReadingSeconds"
+	extraDataReadingSecondsWithZeros = "450078007400720061004400610074006100520065006100640069006e0067005300650063006f006e0064007300"
 )
 
 func NewKoboDatabase(fn string) (KoboDatabase, error) {
@@ -97,8 +106,8 @@ func (k koboDatabase) Contents() ([]KoboBook, error) {
 		pcRead := stmt.ColumnInt(9)
 		contentURL := stmt.ColumnText(10)
 
-		// fmt.Printf("koboDatabase.Contents! cID=%s bID=%s contentType=%s mimeType=%s title=%s bookTitle=%s author=%s readStatus=%d wordCount=%d pcRead=%d contentURL=%s\n",
-		//	cID, bID, contentType, mimeType, title, bookTitle, author, readStatus, wordCount, pcRead, contentURL)
+		/*fmt.Printf("koboDatabase.Contents! cID=%s bID=%s contentType=%s mimeType=%s title=%s bookTitle=%s author=%s readStatus=%d wordCount=%d pcRead=%d contentURL=%s\n",
+		cID, bID, contentType, mimeType, title, bookTitle, author, readStatus, wordCount, pcRead, contentURL)*/
 
 		if contentType == downloadedType && mimeType == pocketMime {
 			if _, exists := index[cID]; !exists {
@@ -166,13 +175,14 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 		eventReadStart   = 1020
 		eventReadEnd     = 1021
 		eventFinished    = 80
-		eventFinishedAlt = 5 // todo: I think this is 'ended reading session' e.g. switched book not finished book
+		eventFinishedAlt = 5
 		eventSession     = 46
 
 		// minReadSessionSecs may need tweaking. Minimum reading session to include in stats
 		minReadSessionSecs = 29
 
-		extraDataReadingSeconds = "ExtraDataReadingSeconds"
+		// maxReadSessionSecs may need tweaking.
+		maxReadSessionSecs = 10000
 	)
 
 	stmt, _, err := k.conn.Prepare(`SELECT EventType, FirstOccurrence, LastOccurrence, EventCount, ContentID, ExtraData FROM Event`)
@@ -188,25 +198,11 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 	endTimes := map[string][]uint32{}
 
 	for stmt.Step() {
-		extraData := []byte{}
-		colData := stmt.ColumnBlob(5, extraData)
-
-		r := bytes.NewBuffer(colData)
-		v, err := (&internal.QDataStreamReader{
-			Reader:    r,
-			ByteOrder: binary.BigEndian,
-		}).ReadQStringQVariantAssociative()
-		if err != nil {
-			// Ignore EOF & unimplemented errors when decoding extra data
-			if !errors.Is(err, io.EOF) && err.Error() != "unimplemented type 20" {
-				fmt.Println(err)
-			}
-		}
-
+		eventType := stmt.ColumnInt(0)
 		// first := stmt.ColumnText(1)
 		last := stmt.ColumnText(2)
 		// count := stmt.ColumnInt(3)
-		lastTime, _ := time.Parse(KoboTimeFmt, last)
+		lastTime := k.parseTimeOrZero(last)
 
 		// Try to get filename from cID
 		cID := stmt.ColumnText(4)
@@ -215,16 +211,23 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 			continue
 		}
 
-		/*if strings.Contains(fn, "Fight") {
-			fmt.Printf("DEBUG! %d / %s / %s / %v\n", stmt.ColumnInt(0), fn, last, v)
-		}*/
+		v, err := readBlobColumn(stmt, 5)
+		if err != nil {
+			panic("todo")
+		}
 
 		if strings.HasSuffix(fn, ".png") {
 			// Skip image files (koreader.png for example)
 			continue
 		}
 
-		switch stmt.ColumnInt(0) {
+		// fmt.Printf("DEBUG! eventType=%d / cID=%s / first=%s last=%s lastTime=%s count=%d / v=%v\n", eventType, cID, first, last, lastTime, count, v)
+
+		/*if strings.Contains(fn, "Fight") {
+			fmt.Printf("DEBUG! %d / %s / %s / %v\n", stmt.ColumnInt(0), fn, last, v)
+		}*/
+
+		switch eventType {
 		case eventProgress25:
 			result = append(result, KoboEvent{BookID: fn, EventType: Progress25Event, Time: lastTime})
 
@@ -235,6 +238,7 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 			result = append(result, KoboEvent{BookID: fn, EventType: Progress75Event, Time: lastTime})
 
 		case eventReadStart:
+			// if _, exists := v["eventTimestamps"]; exists { // Panic if no BLOB data on the ReadStarts
 			data := v["eventTimestamps"].([]interface{})
 			startTimes[fn] = make([]uint32, len(data))
 			for idx := range data {
@@ -242,13 +246,14 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 			}
 
 		case eventReadEnd:
+			// if _, exists := v["eventTimestamps"]; exists { // Panic if no BLOB data on the ReadEnds
 			data := v["eventTimestamps"].([]interface{})
 			endTimes[fn] = make([]uint32, len(data))
 			for idx := range data {
 				endTimes[fn][idx] = data[idx].(uint32)
 			}
 
-		case eventFinished:
+		case eventFinished, eventFinishedAlt:
 			result = append(result, KoboEvent{BookID: fn, EventType: FinishEvent, Time: lastTime})
 
 		case eventSession:
@@ -256,11 +261,11 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 			contentType := ""
 			for key, val := range v {
 				if key == "ContentType" {
-					switch val.(type) {
+					switch val := val.(type) {
 					case string:
-						contentType = val.(string)
+						contentType = val
 					case []uint8:
-						contentType = string(val.([]uint8))
+						contentType = string(val)
 					}
 				}
 			}
@@ -309,17 +314,30 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 
 		sessions := []KoboEventReadingSession{}
 
-		for idx := range startTimes[fn] {
-			if endTimes[fn][idx]-startTimes[fn][idx] < minReadSessionSecs {
+		// endIdx because I had an interesting database corruption where my start/end events got out of sync. I had 166 starts and 165 ends.
+		endIdx := 0
+		doEndLogic := len(startTimes[fn]) != len(endTimes[fn])
+
+		for startIdx := range startTimes[fn] {
+			if endTimes[fn][endIdx]-startTimes[fn][startIdx] < minReadSessionSecs {
+				endIdx += 1
 				continue
 			}
 
+			endTime := endTimes[fn][endIdx]
+
+			if doEndLogic && endTimes[fn][endIdx]-startTimes[fn][startIdx] > maxReadSessionSecs {
+				endTime = startTimes[fn][startIdx] + minReadSessionSecs
+				endIdx -= 1
+			}
+
 			sessions = append(sessions, KoboEventReadingSession{
-				UnixStart: int(startTimes[fn][idx]),
-				UnixEnd:   int(endTimes[fn][idx]),
-				Start:     time.Unix(int64(startTimes[fn][idx]), 0),
-				End:       time.Unix(int64(endTimes[fn][idx]), 0),
+				UnixStart: int(startTimes[fn][startIdx]),
+				UnixEnd:   int(endTime),
+				Start:     time.Unix(int64(startTimes[fn][startIdx]), 0),
+				End:       time.Unix(int64(endTime), 0),
 			})
+			endIdx += 1
 		}
 
 		result = append(result, KoboEvent{
@@ -333,6 +351,167 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 	return result, nil
 }
 
+// readBlobColumn reads the contents of the blob column in QDataStream format.
+// fallback on the kobo-blob-hacks.go if this fails
+func readBlobColumn(stmt *sqlite3.Stmt, i int) (map[string]interface{}, error) {
+	extraData := make([]byte, 0, 1024)
+	colData := stmt.ColumnBlob(i, extraData)
+
+	r := bytes.NewBuffer(colData)
+	v, err := (&internal.QDataStreamReader{
+		Reader:    r,
+		ByteOrder: binary.BigEndian,
+	}).ReadQStringQVariantAssociative()
+	if err != nil {
+		/*cID := stmt.ColumnText(4)
+		fp, _ := os.Create(fmt.Sprintf("/tmp/blob-%s.bin", cID))
+
+		fp.Write(colData)
+		fp.Sync()
+		fp.Close()
+
+		fmt.Println(v)*/
+
+		switch {
+		case err.Error() == "unimplemented type 44":
+			return hacksType44(colData)
+
+		case err.Error() == "unimplemented type 20":
+			/*cID := stmt.ColumnText(4)
+			fmt.Println("unimplemented type 20: ", cID)
+
+			fmt.Println(string(colData))
+
+			panic("default")*/
+
+		case errors.Is(err, io.EOF), err.Error() == "unexpected EOF":
+			// Ignore EOF & unimplemented errors when decoding extra data
+
+		default:
+			// Debug!
+			fmt.Println("ReadQStringQVariantAssociative err: ", err)
+			fmt.Println(hex.EncodeToString(colData))
+			fmt.Println(string(colData))
+
+			panic("default")
+		}
+	}
+
+	return v, nil
+}
+
 func (k koboDatabase) Close() error {
 	return k.conn.Close()
+}
+
+func (k koboDatabase) Shelves() ([]KoboShelf, error) {
+	stmt, _, err := k.conn.Prepare(`select Id,Name,InternalName,Type,_IsDeleted from Shelf ;`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	result := []KoboShelf{}
+
+	for stmt.Step() {
+		result = append(result, KoboShelf{
+			ID:           stmt.ColumnText(0),
+			Name:         stmt.ColumnText(1),
+			InternalName: stmt.ColumnText(2),
+			Type:         stmt.ColumnText(3),
+			IsDeleted:    stmt.ColumnBool(4),
+		})
+	}
+
+	if err := stmt.Err(); err != nil {
+		return nil, err
+	}
+
+	err = stmt.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (k koboDatabase) ShelfContents() ([]KoboShelfContent, error) {
+	stmt, _, err := k.conn.Prepare(`select ShelfName,ContentId,_IsDeleted from ShelfContent ;`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	result := []KoboShelfContent{}
+
+	for stmt.Step() {
+		result = append(result, KoboShelfContent{
+			ShelfName: stmt.ColumnText(0),
+			ContentID: stmt.ColumnText(1),
+			IsDeleted: stmt.ColumnBool(2),
+		})
+	}
+
+	if err := stmt.Err(); err != nil {
+		return nil, err
+	}
+
+	err = stmt.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (k koboDatabase) Bookmarks() ([]KoboBookmark, error) {
+	stmt, _, err := k.conn.Prepare(`select BookmarkID,VolumeID,ContentID,StartContainerPath,StartContainerChildIndex,StartOffset,EndOffset,Text,Annotation,DateCreated,DateModified,Type from Bookmark ;`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	result := make([]KoboBookmark, 0)
+
+	for stmt.Step() {
+		fn, _ := splitContentFilename(stmt.ColumnText(2))
+		if fn == "" {
+			continue
+		}
+
+		result = append(result, KoboBookmark{
+			ID:          stmt.ColumnText(0),
+			VolumeID:    stmt.ColumnText(1),
+			ContentID:   fn,
+			BookPath:    stmt.ColumnText(3),
+			Index:       stmt.ColumnInt(4),
+			StartOffset: stmt.ColumnInt(5),
+			EndOffset:   stmt.ColumnInt(6),
+			Text:        stmt.ColumnText(7),
+			Annotation:  stmt.ColumnText(8),
+			Created:     k.parseTimeOrZero(stmt.ColumnText(9)),
+			Modified:    k.parseTimeOrZero(stmt.ColumnText(10)),
+			Type:        stmt.ColumnText(11),
+		})
+	}
+
+	if err := stmt.Err(); err != nil {
+		return nil, err
+	}
+
+	err = stmt.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (k koboDatabase) parseTimeOrZero(ts string) time.Time {
+	t, err := time.Parse(KoboTimeFmt, ts)
+	if err != nil {
+		return time.Time{}
+	}
+
+	return t
 }

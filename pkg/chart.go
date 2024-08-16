@@ -1,70 +1,54 @@
 package pkg
 
 import (
-	"bytes"
 	"embed"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"os"
-
 	"text/template"
+	"time"
 )
 
 const (
 	fsPrefix       = "files/"
 	pageTemplateFn = "template.html"
-
-	tableTemplateFn       = "template-table.html"
-	columnChartTemplateFn = "template-column.html"
 )
 
 var (
 	//go:embed files/template*
 	templateFS embed.FS
 
-	//go:embed files/charts.min.css
-	chartMinCSS string
-
 	//go:embed files/readstat.css
 	readstatCSS string
 )
 
 type chartTemplateData struct {
-	Title string
+	Title       string
+	Description string
 
-	ChartCSS    string
+	BooksFinished   []chartTemplateStat
+	BooksRead       int
+	BookReadingTime string
+	BookReadCount   string
+
+	ArticlesFinished   []chartTemplateStat
+	ArticlesRead       int
+	ArticleReadingTime string
+	ArticleReadCount   string
+
+	TotalReadingTime string
+
 	ReadstatCSS string
-
-	BookReadCountTable string
-	BookReadCountChart string
 }
 
-type columnChartData struct {
-	ID        string
-	Type      string // e.g. column or bar
-	Caption   string
-	RowLabel  string
-	DataLabel string
-	Rows      []columnChartDataRow
-}
-
-type tableData struct {
-	ID        string
-	Type      string // e.g. column or bar
-	Caption   string
-	RowLabel  string
-	DataLabel string
-	Rows      []tableDataRow
-}
-
-type columnChartDataRow struct {
-	Label string
-	Data  int
-}
-
-type tableDataRow struct {
-	Label string
-	Data  string
+type chartTemplateStat struct {
+	Title    string
+	URL      string
+	Author   string
+	Duration string
+	Sessions int
+	Month    string
 }
 
 const (
@@ -72,46 +56,69 @@ const (
 )
 
 // NewChart read the stats and write single page html to filename
-func NewChart(stats YearStats, year int, filename string) error {
+func NewChart(stats Stats, year int, filename string) error {
 	var err error
 
-	// Build data!
+	months := []string{"", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}
+
 	data := chartTemplateData{
-		ChartCSS:    chartMinCSS,
 		ReadstatCSS: readstatCSS,
 
 		Title: fmt.Sprintf(titleFmt, year),
+		// Description: "reading stats todo description",
+
+		BooksRead:    len(stats.BooksFinishedYear(year)),
+		ArticlesRead: len(stats.ArticlesFinishedYear(year)),
 	}
 
-	// Books finished month
 	bookReadCount := []int{}
-	bookReadNames := []string{}
 
-	months := []string{"", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}
+	articleReadCount := []int{}
+
+	totalReadTime := []float32{}
+
 	for idx := 1; idx <= 12; idx++ {
-		bookReadCount = append(bookReadCount, len(stats.BooksFinishedMonth(idx)))
+		finBooks := stats.BooksFinishedMonth(year, idx)
+		for jdx := range finBooks {
+			totalReadTime = append(totalReadTime, float32(finBooks[jdx].ReadSeconds()))
 
-		names := ""
-		for _, finishedBook := range stats.BooksFinishedMonth(idx) {
-			if names != "" {
-				names = names + ", "
-			}
-
-			names += fmt.Sprintf("%s: %s", finishedBook.Title, finishedBook.Author)
+			data.BooksFinished = append(data.BooksFinished, chartTemplateStat{
+				Title:    finBooks[jdx].Title,
+				Author:   finBooks[jdx].Author,
+				Duration: HumanizeDurationShort(time.Second * time.Duration(finBooks[jdx].ReadSeconds())),
+				Sessions: finBooks[jdx].NumSessions(),
+				Month:    months[idx],
+			})
 		}
 
-		bookReadNames = append(bookReadNames, names)
+		finArts := stats.ArticlesFinishedMonth(year, idx)
+		for jdx := range finArts {
+			totalReadTime[idx-1] += float32(finArts[jdx].ReadSeconds())
+
+			data.ArticlesFinished = append(data.ArticlesFinished, chartTemplateStat{
+				Title:    finArts[jdx].Title,
+				URL:      finArts[jdx].URL,
+				Duration: HumanizeDurationShort(time.Second * time.Duration(finArts[jdx].ReadSeconds())),
+				Sessions: finArts[jdx].NumSessions(),
+				Month:    months[idx],
+			})
+		}
+
+		bookReadCount = append(bookReadCount, len(stats.BooksFinishedMonth(year, idx)))
+		articleReadCount = append(articleReadCount, len(stats.ArticlesFinishedMonth(year, idx)))
 	}
 
-	data.BookReadCountTable, err = renderTable("book-read-table", "Finished Books by Month", "Month", "Count", months[1:], bookReadNames)
-	if err != nil {
-		return err
-	}
+	data.BookReadingTime = HumanizeDurationShort(time.Second * time.Duration(stats.BooksSecondsReadYear(year)))
+	data.ArticleReadingTime = HumanizeDurationShort(time.Second * time.Duration(stats.ArticlesSecondsReadYear(year)))
 
-	data.BookReadCountChart, err = renderColumnChart("book-read-count", "Finished Books by Month", "Month", "Count", months[1:], bookReadCount)
-	if err != nil {
-		return err
-	}
+	bC, _ := json.Marshal(bookReadCount)
+	data.BookReadCount = string(bC)
+
+	aC, _ := json.Marshal(articleReadCount)
+	data.ArticleReadCount = string(aC)
+
+	tC, _ := json.Marshal(totalReadTime)
+	data.TotalReadingTime = string(tC)
 
 	// Write template!
 	fp, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0o644)
@@ -134,75 +141,4 @@ func NewChart(stats YearStats, year int, filename string) error {
 	}
 
 	return nil
-}
-
-func renderTable(id, title, rowLabel, dataLabel string, rows, datas []string) (string, error) {
-	if len(rows) != len(datas) {
-		return "", fmt.Errorf("length of rows must match length of datas %d != %d", len(rows), len(datas))
-	}
-
-	data := tableData{
-		ID:        id,
-		Caption:   title,
-		RowLabel:  rowLabel,
-		DataLabel: dataLabel,
-		Rows:      make([]tableDataRow, 0),
-	}
-
-	for idx := range rows {
-		data.Rows = append(data.Rows, tableDataRow{Label: rows[idx], Data: datas[idx]})
-	}
-
-	buf := []byte{}
-	bufWriter := bytes.NewBuffer(buf)
-
-	tmpl, err := template.New(tableTemplateFn).ParseFS(templateFS, fsPrefix+tableTemplateFn)
-	if err != nil {
-		return "", err
-	}
-
-	err = tmpl.Execute(bufWriter, data)
-	if err != nil {
-		return "", err
-	}
-
-	return bufWriter.String(), nil
-}
-
-func renderColumnChart(id, title, rowLabel, dataLabel string, rows []string, datas []int) (string, error) {
-	return renderTableOrChart(columnChartTemplateFn, "bar", id, title, rowLabel, dataLabel, rows, datas)
-}
-
-func renderTableOrChart(templateFn, typeStr, id, title, rowLabel, dataLabel string, rows []string, datas []int) (string, error) {
-	if len(rows) != len(datas) {
-		return "", fmt.Errorf("length of rows must match length of datas %d != %d", len(rows), len(datas))
-	}
-
-	data := columnChartData{
-		Type:      typeStr,
-		ID:        id,
-		Caption:   title,
-		RowLabel:  rowLabel,
-		DataLabel: dataLabel,
-		Rows:      make([]columnChartDataRow, 0),
-	}
-
-	for idx := range rows {
-		data.Rows = append(data.Rows, columnChartDataRow{Label: rows[idx], Data: datas[idx]})
-	}
-
-	buf := []byte{}
-	bufWriter := bytes.NewBuffer(buf)
-
-	tmpl, err := template.New(templateFn).ParseFS(templateFS, fsPrefix+templateFn)
-	if err != nil {
-		return "", err
-	}
-
-	err = tmpl.Execute(bufWriter, data)
-	if err != nil {
-		return "", err
-	}
-
-	return bufWriter.String(), nil
 }
