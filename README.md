@@ -21,16 +21,16 @@ And the `stats` command to show stats in text or html
 ```text
 ./kobo-readstat stats -y 2023 -s ./tc_readstat.json --mode html --out tc_2023.html
 ```
-![screenshot of html reading stats](tc_2023.png "2023")
+![screenshot of html reading stats](.files/tc_2023_report.png "2023 report screenshot")
 
 ```text
 ./kobo-readstat stats -s ./tc_readstat.json -y 2023
 Year: 2023
 Finished books			: 18
 Finished articles		: 286
-Time reading books		: 21 days 16 hours 20 minutes 52 seconds
-Time reading articles		: 1 days 21 hours 56 minutes 12 seconds
-Total time reading		: 23 days 14 hours 17 minutes 4 seconds
+Time reading books		: 21 days 22 hours 25 minutes 35 seconds
+Time reading articles		: 1 days 21 hours 58 minutes 51 seconds
+Total time reading		: 23 days 20 hours 24 minutes 26 seconds
 
 ----------
 
@@ -53,24 +53,24 @@ June 2023 - Finished books: 1, articles: 44, time spend reading books: 10 hours 
 	 finished book: Everything's Eventual: 14 Dark Tales - Stephen King (Duration: 5h14m6s over 39 Sessions)
 
 July 2023 - Finished books: 2, articles: 29, time spend reading books: 2 days 7 hours 2 minutes 24 seconds and articles: 4 hours 42 minutes 25 seconds
-	 finished book: The Gallows Pole - Benjamin Myers (Duration: 5h11m38s over 35 Sessions)
 	 finished book: The Three-Body Problem, No. 2: Dark Forest - Liu Cixin (Duration: 22h3m16s over 128 Sessions)
+	 finished book: The Gallows Pole - Benjamin Myers (Duration: 5h11m38s over 35 Sessions)
 
-August 2023 - Finished books: 2, articles: 15, time spend reading books: 2 days 8 hours 5 minutes 55 seconds and articles: 2 hours 1 minutes 44 seconds
+August 2023 - Finished books: 2, articles: 15, time spend reading books: 2 days 14 hours 10 minutes 38 seconds and articles: 2 hours 1 minutes 44 seconds
 	 finished book: Molesworth - Geoffrey Willans (Duration: 5m39s over 1 Sessions)
 	 finished book: Death's End - Cixin Liu (Duration: 26h35m39s over 134 Sessions)
 
-September 2023 - Finished books: 2, articles: 16, time spend reading books: 2 days 19 hours 28 minutes 43 seconds and articles: 2 hours 45 minutes 22 seconds
-	 finished book: Altered Carbon - Richard K. K. Morgan (Duration: 21h7m24s over 124 Sessions)
+September 2023 - Finished books: 2, articles: 16, time spend reading books: 2 days 19 hours 28 minutes 43 seconds and articles: 2 hours 48 minutes 1 seconds
 	 finished book: The Outsider: A Novel - Stephen King (Duration: 21h39m37s over 102 Sessions)
+	 finished book: Altered Carbon - Richard K. K. Morgan (Duration: 21h7m24s over 124 Sessions)
 
 October 2023 - Finished books: 2, articles: 22, time spend reading books: 1 days 16 hours 59 minutes 54 seconds and articles: 3 hours 41 minutes 1 seconds
 	 finished book: Eating Animals - Jonathan Safran Foer (Duration: 9h27m49s over 62 Sessions)
 	 finished book: Lullaby - Chuck Palahniuk (Duration: 7h11m50s over 51 Sessions)
 
 November 2023 - Finished books: 2, articles: 23, time spend reading books: 2 days 19 hours 38 minutes 26 seconds and articles: 3 hours 46 minutes 29 seconds
-	 finished book: Mr Mercedes - Stephen King (Duration: 17h44m15s over 100 Sessions)
 	 finished book: The Future - Naomi Alderman (Duration: 12h28m9s over 68 Sessions)
+	 finished book: Mr Mercedes - Stephen King (Duration: 17h44m15s over 100 Sessions)
 
 December 2023 - Finished books: 2, articles: 20, time spend reading books: 2 days 8 hours 21 minutes 12 seconds and articles: 2 hours 44 minutes 16 seconds
 	 finished book: The Neverending Story - Michael Ende (Duration: 7h34m23s over 49 Sessions)
