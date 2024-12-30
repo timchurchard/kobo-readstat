@@ -1,7 +1,7 @@
 # kobo-readstat
 
 ![Build Status](https://github.com/timchurchard/readstat/workflows/Test/badge.svg)
-![Coverage](https://img.shields.io/badge/Coverage-31.4%25-yellow)
+![Coverage](https://img.shields.io/badge/Coverage-0-red)
 [![License](https://img.shields.io/github/license/timchurchard/readstat)](/LICENSE)
 [![Release](https://img.shields.io/github/release/timchurchard/readstat.svg)](https://github.com/timchurchard/readstat/releases/latest)
 [![GitHub Releases Stats of readstat](https://img.shields.io/github/downloads/timchurchard/readstat/total.svg?logo=github)](https://somsubhra.github.io/github-release-stats/?username=timchurchard&repository=readstat)
