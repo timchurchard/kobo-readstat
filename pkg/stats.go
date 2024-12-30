@@ -2,429 +2,248 @@
 package pkg
 
 import (
-	"fmt"
 	"time"
-
-	"github.com/timchurchard/readstat/internal"
 )
 
-type Stats interface {
-	BooksFinishedYear() []*StatsBook
-	BooksFinishedMonth(month int) []*StatsBook
+type Statter interface {
+	BooksFinishedYear(year int) []*StatsBook
+	BooksFinishedMonth(year, month int) []*StatsBook
 
-	ArticlesFinishedYear() []*StatsBook
-	ArticlesFinishedMonth(month int) []*StatsBook
+	ArticlesFinishedYear(year int) []*StatsBook
+	ArticlesFinishedMonth(year, month int) []*StatsBook
 
-	WordsFinishedYear() int
-	WordsFinishedMonth(month int) int
+	BooksSecondsReadYear(year int) int
+	BooksSecondsReadMonth(year, month int) int
 
-	BooksSecondsReadYear() int
-	BooksSecondsReadMonth(month int) int
+	ArticlesSecondsReadYear(year int) int
+	ArticlesSecondsReadMonth(year, month int) int
+}
 
-	ArticlesSecondsReadYear() int
-	ArticlesSecondsReadMonth(month int) int
+type Stats struct {
+	Years map[int]YearStats `json:"years"`
+
+	Content map[string]StatsBook `json:"content"`
 }
 
 type YearStats struct {
-	Year   int                `json:"year"`
 	Months map[int]MonthStats `json:"months"`
 }
 
 type MonthStats struct {
-	FinishedBooks    []*StatsBook `json:"finished"`
-	FinishedArticles []*StatsBook `json:"finished_articles"`
+	FinishedBooks    map[string]*StatsBook `json:"finished"`
+	FinishedArticles map[string]*StatsBook `json:"finished_articles"`
 
-	Books    []StatsBook `json:"progressed"`
-	Articles []StatsBook `json:"progressed_articles"`
+	Books    map[string]*StatsBook `json:"progressed"`
+	Articles map[string]*StatsBook `json:"progressed_articles"`
 }
 
-func (m *MonthStats) AddFinishedBook(sb StatsBook) {
-	found := false
-	for idx := range m.Books {
-		if m.Books[idx].BookID == sb.BookID {
-			found = true
-			break
-		}
+// NewStats take a Storage and calculate the full stats
+func NewStats(storage Storage) Stats {
+	result := Stats{
+		Years:   make(map[int]YearStats),
+		Content: make(map[string]StatsBook),
 	}
 
-	if !found {
-		m.Books = append(m.Books, sb)
+	// Collect all info per content
+	for _, content := range storage.Contents() {
+		book := StatsBook{
+			BookID:     content.ID,
+			Title:      content.Title,
+			Author:     content.Author,
+			URL:        content.URL,
+			Words:      content.Words,
+			IsBook:     content.IsBook,
+			IsFinished: content.IsFinished,
+			Reads:      make([]StatsRead, 0),
+			Bookmarks:  make([]StatsBookmark, 0),
+		}
 
-		for idx := range m.Books {
-			if m.Books[idx].BookID == sb.BookID {
-				m.FinishedBooks = append(m.FinishedBooks, &m.Books[idx])
+		for _, event := range storage.Events(content.ID) {
+			eventTime, err := time.Parse(StorageTimeFmt, event.Time)
+			if err != nil {
+				panic(err)
+			}
+
+			switch event.EventName {
+			case FinishEvent.String():
+				book.IsFinished = true
+				book.FinishedTime = event.Time
+
+			case ReadEvent.String():
+				book.Reads = append(book.Reads, StatsRead{
+					Time:     event.Time,
+					Duration: event.Duration,
+				})
+
+				if book.IsFinished && book.FinishedTime == "" {
+					book.FinishedTime = event.Time // TODO!
+				}
+			}
+
+			if _, exists := result.Years[eventTime.Year()]; !exists {
+				result.Years[eventTime.Year()] = YearStats{
+					Months: make(map[int]MonthStats),
+				}
+
+				for idx := 0; idx < 12; idx++ {
+					result.Years[eventTime.Year()].Months[idx+1] = MonthStats{
+						FinishedBooks:    make(map[string]*StatsBook),
+						FinishedArticles: make(map[string]*StatsBook),
+						Books:            make(map[string]*StatsBook),
+						Articles:         make(map[string]*StatsBook),
+					}
+				}
 			}
 		}
-	}
-}
 
-func (m *MonthStats) AddFinishedArticle(sb StatsBook) {
-	found := false
-	for idx := range m.Articles {
-		if m.Articles[idx].BookID == sb.BookID {
-			found = true
-			break
+		bookmarks := storage.Bookmarks(content.ID)
+		for idx := range bookmarks {
+			book.Bookmarks = append(book.Bookmarks, StatsBookmark{
+				ID:          bookmarks[idx].ID,
+				Index:       bookmarks[idx].Index,
+				StartOffset: bookmarks[idx].StartOffset,
+				EndOffset:   bookmarks[idx].EndOffset,
+				Text:        bookmarks[idx].Text,
+				Annotation:  bookmarks[idx].Annotation,
+				Created:     bookmarks[idx].Created,
+				Modified:    bookmarks[idx].Modified,
+				Type:        bookmarks[idx].Type,
+			})
 		}
+
+		result.Content[content.ID] = book
 	}
 
-	if !found {
-		m.Articles = append(m.Articles, sb)
+	// Content to Months
+	for cid := range result.Content {
+		if result.Content[cid].IsFinished && result.Content[cid].FinishedTime != "" {
+			finishedTime, err := time.Parse(StorageTimeFmt, result.Content[cid].FinishedTime)
+			if err != nil {
+				panic(err)
+			}
 
-		for idx := range m.Articles {
-			if m.Articles[idx].BookID == sb.BookID {
-				m.FinishedArticles = append(m.FinishedArticles, &m.Articles[idx])
+			finishedYear := finishedTime.Year()
+			finishedMonth := int(finishedTime.Month())
+
+			if result.Content[cid].IsBook {
+				if _, exists := result.Years[finishedYear].Months[finishedMonth].FinishedBooks[cid]; !exists {
+					book := result.Content[cid]
+					result.Years[finishedYear].Months[finishedMonth].FinishedBooks[cid] = &book
+				}
+			} else {
+				if _, exists := result.Years[finishedYear].Months[finishedMonth].FinishedArticles[cid]; !exists {
+					book := result.Content[cid]
+					result.Years[finishedYear].Months[finishedMonth].FinishedArticles[cid] = &book
+				}
 			}
 		}
-	}
-}
 
-func (m *MonthStats) AddBook(sb StatsBook) {
-	found := false
-	for idx := range m.Books {
-		if m.Books[idx].BookID == sb.BookID {
-			found = true
-			break
+		for idx := range result.Content[cid].Reads {
+			readTime, err := time.Parse(StorageTimeFmt, result.Content[cid].Reads[idx].Time)
+			if err != nil {
+				panic(err)
+			}
+
+			readYear := readTime.Year()
+			readMonth := int(readTime.Month())
+
+			if result.Content[cid].IsBook {
+				if _, exists := result.Years[readYear].Months[readMonth].Books[cid]; !exists {
+					book := result.Content[cid]
+					result.Years[readYear].Months[readMonth].Books[cid] = &book
+				}
+			} else {
+				if _, exists := result.Years[readYear].Months[readMonth].Articles[cid]; !exists {
+					book := result.Content[cid]
+					result.Years[readYear].Months[readMonth].Articles[cid] = &book
+				}
+			}
 		}
-	}
-
-	if !found {
-		m.Books = append(m.Books, sb)
-	}
-}
-
-func (m *MonthStats) AddArticle(sb StatsBook) {
-	found := false
-	for idx := range m.Articles {
-		if m.Articles[idx].BookID == sb.BookID {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		m.Articles = append(m.Articles, sb)
-	}
-}
-
-func (m *MonthStats) AddReading(bookID string, startTime string, duration int) {
-	read := StatsRead{
-		Time:     startTime,
-		Duration: duration,
-	}
-
-	for idx := range m.Books {
-		if m.Books[idx].BookID == bookID {
-			m.Books[idx].Reads = append(m.Books[idx].Reads, read)
-		}
-	}
-	for idx := range m.Articles {
-		if m.Articles[idx].BookID == bookID {
-			m.Articles[idx].Reads = append(m.Articles[idx].Reads, read)
-		}
-	}
-}
-
-type StatsBook struct {
-	BookID string `json:"id"`
-	Title  string `json:"title"`
-	Author string `json:"author"`
-	URL    string `json:"url"`
-
-	Words int `json:"words"`
-
-	IsBook     bool `json:"is_book"`
-	IsFinished bool `json:"is_finished"`
-
-	Reads []StatsRead `json:"reads"`
-}
-
-func (b StatsBook) ReadSeconds() int {
-	result := 0
-
-	for idx := range b.Reads {
-		result += b.Reads[idx].Duration
 	}
 
 	return result
 }
 
-func (b StatsBook) NumSessions() int {
-	return len(b.Reads)
-}
-
-type StatsRead struct {
-	Time     string `json:"time"`
-	Duration int    `json:"duration"`
-}
-
-// NewStatsForYear take a Storage and calculate the stats for a given year (4 character e.g. 2023 int)
-func NewStatsForYear(storage internal.Storage, year int) YearStats {
-	months := make([]MonthStats, 13) // We'll use 1..12 as the range
-	for idx := 1; idx <= 12; idx++ {
-		months[idx].FinishedBooks = []*StatsBook{}
-		months[idx].Books = []StatsBook{}
-	}
-
-	// Books in months
-	for cIdx := range storage.Contents {
-		if storage.Contents[cIdx].IsBook {
-			// First pass finished books
-			for eIdx := range storage.Events[cIdx] {
-				eventTime, err := time.Parse(internal.StorageTimeFmt, storage.Events[cIdx][eIdx].Time)
-				if err != nil {
-					panic(err)
-				}
-
-				inYear, monthNo := isInYearAndMonth(year, eventTime)
-				if inYear {
-					switch storage.Events[cIdx][eIdx].EventName {
-					case "Finish":
-						months[monthNo].AddFinishedBook(StatsBook{
-							BookID:     cIdx,
-							Title:      storage.Contents[cIdx].Title,
-							Author:     storage.Contents[cIdx].Author,
-							Words:      storage.Contents[cIdx].Words,
-							IsFinished: true,
-							Reads:      nil,
-						})
-					}
-				}
-			}
-
-			// Second pass any read book ensure exists in the right months
-			for eIdx := range storage.Events[cIdx] {
-				eventTime, _ := time.Parse(internal.StorageTimeFmt, storage.Events[cIdx][eIdx].Time)
-
-				inYear, monthNo := isInYearAndMonth(year, eventTime)
-				if inYear {
-					switch storage.Events[cIdx][eIdx].EventName {
-					case "Read":
-						months[monthNo].AddBook(StatsBook{
-							BookID:     cIdx,
-							Title:      storage.Contents[cIdx].Title,
-							Author:     storage.Contents[cIdx].Author,
-							Words:      storage.Contents[cIdx].Words,
-							IsFinished: false,
-							Reads:      []StatsRead{},
-						})
-					}
-				}
-			}
-
-			// Third pass reading sessions!
-			for eIdx := range storage.Events[cIdx] {
-				eventTime, _ := time.Parse(internal.StorageTimeFmt, storage.Events[cIdx][eIdx].Time)
-
-				inYear, monthNo := isInYearAndMonth(year, eventTime)
-				if inYear {
-					switch storage.Events[cIdx][eIdx].EventName {
-					case "Read":
-						months[monthNo].AddReading(cIdx, storage.Events[cIdx][eIdx].Time, storage.Events[cIdx][eIdx].Duration)
-					}
-				}
-			}
-		} else {
-			for eIdx := range storage.Events[cIdx] {
-				eventTime, _ := time.Parse(internal.StorageTimeFmt, storage.Events[cIdx][eIdx].Time)
-
-				inYear, monthNo := isInYearAndMonth(year, eventTime)
-				if inYear {
-					switch storage.Events[cIdx][eIdx].EventName {
-					case "Read":
-						sb := StatsBook{
-							BookID:     cIdx,
-							Title:      storage.Contents[cIdx].Title,
-							Author:     storage.Contents[cIdx].Author,
-							URL:        storage.Contents[cIdx].URL,
-							Words:      storage.Contents[cIdx].Words,
-							IsBook:     false,
-							IsFinished: storage.Contents[cIdx].IsFinished,
-							Reads:      []StatsRead{},
-						}
-
-						if storage.Contents[cIdx].IsFinished {
-							months[monthNo].AddFinishedArticle(sb)
-						}
-
-						months[monthNo].AddArticle(sb)
-						months[monthNo].AddReading(cIdx, storage.Events[cIdx][eIdx].Time, storage.Events[cIdx][eIdx].Duration)
-					}
-				}
-			}
-		}
-	}
-
-	// build the result!
-	result := YearStats{
-		Year:   year,
-		Months: map[int]MonthStats{},
-	}
-
-	for idx := 1; idx <= 12; idx++ {
-		result.Months[idx] = months[idx]
-	}
-
-	return result
-}
-
-func (y YearStats) BooksFinishedYear() []*StatsBook {
+func (s Stats) BooksFinishedYear(year int) []*StatsBook {
 	result := make([]*StatsBook, 0)
 
-	for idx := range y.Months {
-		result = append(result, y.BooksFinishedMonth(idx)...)
+	for month := range s.Years[year].Months {
+		result = append(result, s.BooksFinishedMonth(year, month)...)
 	}
 
 	return result
 }
 
-func (y YearStats) BooksFinishedMonth(month int) []*StatsBook {
-	return y.Months[month].FinishedBooks
-}
-
-func (y YearStats) ArticlesFinishedYear() []*StatsBook {
+func (s Stats) BooksFinishedMonth(year, month int) []*StatsBook {
 	result := make([]*StatsBook, 0)
 
-	for idx := range y.Months {
-		result = append(result, y.ArticlesFinishedMonth(idx)...)
+	for idx := range s.Years[year].Months[month].FinishedBooks {
+		result = append(result, s.Years[year].Months[month].FinishedBooks[idx])
 	}
 
 	return result
 }
 
-func (y YearStats) ArticlesFinishedMonth(month int) []*StatsBook {
-	return y.Months[month].FinishedArticles
+func (s Stats) ArticlesFinishedYear(year int) []*StatsBook {
+	result := make([]*StatsBook, 0)
+
+	for month := range s.Years[year].Months {
+		result = append(result, s.ArticlesFinishedMonth(year, month)...)
+	}
+
+	return result
 }
 
-func (y YearStats) WordsFinishedYear() int {
+func (s Stats) ArticlesFinishedMonth(year, month int) []*StatsBook {
+	result := make([]*StatsBook, 0)
+
+	for idx := range s.Years[year].Months[month].FinishedArticles {
+		result = append(result, s.Years[year].Months[month].FinishedArticles[idx])
+	}
+
+	return result
+}
+
+func (s Stats) BooksSecondsReadYear(year int) int {
 	result := 0
 
-	for idx := range y.Months {
-		result += y.WordsFinishedMonth(idx)
+	for month := 1; month < 13; month++ {
+		result += s.BooksSecondsReadMonth(year, month)
 	}
 
 	return result
 }
 
-func (y YearStats) WordsFinishedMonth(month int) int {
+func (s Stats) BooksSecondsReadMonth(year, month int) int {
 	result := 0
 
-	for _, book := range append(y.BooksFinishedMonth(month), y.ArticlesFinishedMonth(month)...) {
-		result += book.Words
+	for idx := range s.Years[year].Months[month].Books {
+		for jdx := range s.Years[year].Months[month].Books[idx].Reads {
+			result += s.Years[year].Months[month].Books[idx].Reads[jdx].Duration
+		}
 	}
 
 	return result
 }
 
-func (y YearStats) BooksSecondsReadYear() int {
+func (s Stats) ArticlesSecondsReadYear(year int) int {
 	result := 0
 
-	for idx := range y.Months {
-		result += y.BooksSecondsReadMonth(idx)
+	for month := 1; month < 13; month++ {
+		result += s.ArticlesSecondsReadMonth(year, month)
 	}
 
 	return result
 }
 
-func (y YearStats) BooksSecondsReadMonth(month int) int {
+func (s Stats) ArticlesSecondsReadMonth(year, month int) int {
 	result := 0
 
-	for _, book := range y.Months[month].Books {
-		result += book.ReadSeconds()
+	for idx := range s.Years[year].Months[month].Articles {
+		for jdx := range s.Years[year].Months[month].Articles[idx].Reads {
+			result += s.Years[year].Months[month].Articles[idx].Reads[jdx].Duration
+		}
 	}
 
 	return result
-}
-
-func (y YearStats) ArticlesSecondsReadYear() int {
-	result := 0
-
-	for idx := range y.Months {
-		result += y.ArticlesSecondsReadMonth(idx)
-	}
-
-	return result
-}
-
-func (y YearStats) ArticlesSecondsReadMonth(month int) int {
-	result := 0
-
-	for _, book := range y.Months[month].Articles {
-		result += book.ReadSeconds()
-	}
-
-	return result
-}
-
-// isInYearAndMonth todo refactor
-func isInYearAndMonth(year int, eventTime time.Time) (bool, int) {
-	yearStart, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-01-01", year))
-	Feb, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-02-01", year))
-	Mar, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-03-01", year))
-	Apr, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-04-01", year))
-	May, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-05-01", year))
-	Jun, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-06-01", year))
-	Jul, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-07-01", year))
-	Aug, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-08-01", year))
-	Sep, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-09-01", year))
-	Oct, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-10-01", year))
-	Nov, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-11-01", year))
-	Dec, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-12-01", year))
-	yearEnd, _ := time.Parse("2006-01-02", fmt.Sprintf("%d-01-01", year+1))
-
-	if inTimeSpan(yearStart, yearEnd, eventTime) {
-		month := -1
-
-		if inTimeSpan(yearStart, Feb, eventTime) {
-			month = 1
-		}
-		if inTimeSpan(Feb, Mar, eventTime) {
-			month = 2
-		}
-		if inTimeSpan(Mar, Apr, eventTime) {
-			month = 3
-		}
-		if inTimeSpan(Apr, May, eventTime) {
-			month = 4
-		}
-		if inTimeSpan(May, Jun, eventTime) {
-			month = 5
-		}
-		if inTimeSpan(Jun, Jul, eventTime) {
-			month = 6
-		}
-		if inTimeSpan(Jul, Aug, eventTime) {
-			month = 7
-		}
-		if inTimeSpan(Aug, Sep, eventTime) {
-			month = 8
-		}
-		if inTimeSpan(Sep, Oct, eventTime) {
-			month = 9
-		}
-		if inTimeSpan(Oct, Nov, eventTime) {
-			month = 10
-		}
-		if inTimeSpan(Nov, Dec, eventTime) {
-			month = 11
-		}
-		if inTimeSpan(Dec, yearEnd, eventTime) {
-			month = 12
-		}
-
-		return true, month
-	}
-
-	return false, -1
-}
-
-// inTimeSpan check time in range
-// From: https://stackoverflow.com/a/55093788
-func inTimeSpan(start, end, check time.Time) bool {
-	if start.Before(end) {
-		return !check.Before(start) && !check.After(end)
-	}
-	if start.Equal(end) {
-		return check.Equal(start)
-	}
-	return !start.After(check) || !end.Before(check)
 }

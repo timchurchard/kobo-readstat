@@ -1,9 +1,10 @@
 package pkg
 
 import (
-	"fmt"
-	"github.com/timchurchard/readstat/internal"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func TestNewStatsForYear(t *testing.T) {
@@ -15,15 +16,12 @@ func TestNewStatsForYear(t *testing.T) {
 		testArticleAID = "articles/test-article-a.epub"
 	)
 
-	testStorage := internal.Storage{
-		Devices: map[string]internal.StorageDevice{
-			testDeviceAID: internal.StorageDevice{
-				Device: "Test Device 123",
-				Model:  "ABC123",
-			},
-		},
-		Contents: map[string]internal.StorageContent{
-			testBookAID: {
+	t.Run("", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		testContents := []StorageContent{
+			{
 				ID:         testBookAID,
 				Title:      "Test Book A",
 				Author:     "AAA",
@@ -32,7 +30,7 @@ func TestNewStatsForYear(t *testing.T) {
 				IsBook:     true,
 				IsFinished: true,
 			},
-			testBookBID: {
+			{
 				ID:         testBookBID,
 				Title:      "Test Book B",
 				Author:     "BBB",
@@ -41,7 +39,7 @@ func TestNewStatsForYear(t *testing.T) {
 				IsBook:     false,
 				IsFinished: false,
 			},
-			testArticleAID: {
+			{
 				ID:         testArticleAID,
 				Title:      "Test Article A",
 				Author:     "XXX",
@@ -50,28 +48,36 @@ func TestNewStatsForYear(t *testing.T) {
 				IsBook:     false,
 				IsFinished: true,
 			},
-		},
-		Events: map[string][]internal.StorageEvents{
-			testBookAID: {
-				{EventName: "Read", Time: "2020-02-01T01:02:03.000", Duration: 100, Device: testDeviceAID},
-				{EventName: "Read", Time: "2020-02-01T02:02:03.000", Duration: 200, Device: testDeviceAID},
-				{EventName: "Read", Time: "2020-02-01T03:02:03.000", Duration: 300, Device: testDeviceAID},
-				{EventName: "Finish", Time: "2020-02-01T03:02:03.000", Duration: 0, Device: testDeviceAID},
-			},
-			testBookBID: {
-				{EventName: "Read", Time: "2020-02-02T01:02:03.000", Duration: 10, Device: testDeviceAID},
-				{EventName: "Read", Time: "2020-02-02T02:02:03.000", Duration: 20, Device: testDeviceAID},
-				{EventName: "Read", Time: "2020-02-02T03:02:03.000", Duration: 30, Device: testDeviceAID},
-			},
-			testArticleAID: {
-				{EventName: "Read", Time: "2020-02-03T02:02:03.000", Duration: 1000, Device: testDeviceAID},
-				{EventName: "Finish", Time: "2020-02-03T03:02:03.000", Duration: 0, Device: testDeviceAID},
-			},
-		},
-	}
+		}
 
-	yearStats := NewStatsForYear(testStorage, 2020)
+		testStorage := NewMockStorage(ctrl)
+		testStorage.EXPECT().Contents().Return(testContents)
+		testStorage.EXPECT().Events(testBookAID).Return([]StorageEvents{
+			{EventName: "Read", Time: "2020-02-01T01:02:03.000", Duration: 100, Device: testDeviceAID},
+			{EventName: "Read", Time: "2020-02-01T02:02:03.000", Duration: 200, Device: testDeviceAID},
+			{EventName: "Read", Time: "2020-02-01T03:02:03.000", Duration: 300, Device: testDeviceAID},
+			{EventName: "Finish", Time: "2020-02-01T03:02:03.000", Duration: 0, Device: testDeviceAID},
+		})
+		testStorage.EXPECT().Events(testBookBID).Return([]StorageEvents{
+			{EventName: "Read", Time: "2020-02-02T01:02:03.000", Duration: 10, Device: testDeviceAID},
+			{EventName: "Read", Time: "2020-02-02T02:02:03.000", Duration: 20, Device: testDeviceAID},
+			{EventName: "Read", Time: "2020-02-02T03:02:03.000", Duration: 30, Device: testDeviceAID},
+		})
+		testStorage.EXPECT().Events(testArticleAID).Return([]StorageEvents{
+			{EventName: "Read", Time: "2020-02-03T02:02:03.000", Duration: 1000, Device: testDeviceAID},
+			{EventName: "Finish", Time: "2020-02-03T03:02:03.000", Duration: 0, Device: testDeviceAID},
+		})
+		testStorage.EXPECT().Bookmarks(testBookAID).Return([]StorageBookmark{
+			{ID: "aaa", VolumeID: "bbb", ContentID: testBookAID, BookPath: "ccc", Index: 123, StartOffset: 0, EndOffset: 0, Text: "text"},
+		})
+		testStorage.EXPECT().Bookmarks(testBookBID).Return([]StorageBookmark{})
+		testStorage.EXPECT().Bookmarks(testArticleAID).Return([]StorageBookmark{})
 
-	finYear := yearStats.BooksFinishedYear()
-	fmt.Println(finYear)
+		yearStats := NewStats(testStorage)
+
+		finYear := yearStats.BooksFinishedYear(2020)
+		assert.Len(t, finYear, 1)
+		assert.Equal(t, testBookAID, finYear[0].BookID)
+		assert.Len(t, finYear[0].Reads, 3)
+	})
 }

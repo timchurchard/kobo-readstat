@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 # Lint version should match what is in .github/workflows/build-and-test.yml
-MOCKGEN_VERSION=v1.6.0
+MOCKGEN_VERSION=v0.4.0
 
 # If command not found then install required version
-mockgen >/dev/null 2>&1 || go install github.com/golang/mock/mockgen@$MOCKGEN_VERSION
+mockgen >/dev/null 2>&1 || go install go.uber.org/mock/mockgen@${MOCKGEN_VERSION}
 
 # Show the full version line
 mockgen -version

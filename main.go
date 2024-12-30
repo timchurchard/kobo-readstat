@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/timchurchard/readstat/cmd"
+	"github.com/timchurchard/kobo-readstat/cmd"
 )
 
-const cliName = "readstat"
+const cliName = "kobo-readstat"
 
 func main() {
-	if len(os.Args) < 2 {
-		usageRoot()
-	}
+	//if len(os.Args) < 2 {
+	//	os.Exit(cmd.Gui(os.Stdout))
+	//}
 
 	// Save the command and reset the flags
 	command := os.Args[1]
@@ -26,12 +26,16 @@ func main() {
 
 	case "stats":
 		os.Exit(cmd.Stats(os.Stdout))
-	}
 
-	usageRoot()
+	//case "gui":
+	//	os.Exit(cmd.Gui(os.Stdout))
+
+	default:
+		usageRoot()
+	}
 }
 
 func usageRoot() {
-	fmt.Printf("usage: %s commands(sync or stats) options\n", cliName)
+	fmt.Printf("usage: %s commands(gui, sync or stats) options\n", cliName)
 	os.Exit(1)
 }

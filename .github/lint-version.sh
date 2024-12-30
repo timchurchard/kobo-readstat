@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Lint version should match what is in .github/workflows/build-and-test.yml
-LINT_VERSION=v1.54.2
+LINT_VERSION=v1.62.2
 
 # If command not found then install required version
 golangci-lint >/dev/null || go install github.com/golangci/golangci-lint/cmd/golangci-lint@$LINT_VERSION

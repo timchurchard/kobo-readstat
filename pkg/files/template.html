@@ -1,21 +1,307 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
         "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
-<head><title>{{ .Title }}</title>
-    <!-- Using chartcss - https://chartscss.org - https://cdn.jsdelivr.net/npm/charts.css/dist/charts.min.css -->
-    <style>{{ .ChartCSS }}</style>
-    <style>{{ .ReadstatCSS }}</style>
-</head><body>
-    <h1>{{ .Title }}</h1><br/>
+<head>
+    <!-- Credit to: https://github.com/tailwindtoolbox/Admin-Template-Day -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{{ .Title }}</title>
+    <meta name="description" content="{{ .Description }}">
+    <meta name="keywords" content="keywords,here">
 
-    <table id="container">
-        <tr>
-            <td width="50%">{{ .BookReadCountTable }}</td>
-            <td width="50%">{{ .BookReadCountChart }}</td>
-        <tr>
-        <tr>
-            <td></td>
-            <td></td>
-        </tr>
-    </table>
-</body></html>
+    <!-- TODO: templating not working for font awesome or tailwind or chartjs -->
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css" integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.bundle.min.js" integrity="sha256-XF29CBwU1MWLaGEnsELogU6Y6rcc5nCkhhx89nFMIDQ=" crossorigin="anonymous"></script>
+
+    <style>{{ .ReadstatCSS }}</style>
+</head>
+<body class="bg-gray-100 font-sans leading-normal tracking-normal">
+
+<nav id="header" class="bg-white fixed w-full z-10 top-0 shadow">
+
+    <div class="w-full container mx-auto flex flex-wrap items-center mt-0 pt-3 pb-3 md:pb-0">
+
+        <div class="w-1/2 pl-2 md:pl-0">
+            <a class="text-gray-900 text-base xl:text-xl no-underline hover:no-underline font-bold" href="#">
+                <i class="fas fa-sun text-pink-600 pr-3"></i> {{ .Title }}
+            </a>
+        </div>
+        <div class="w-1/2 pr-0">
+            <div class="flex relative inline-block float-right">
+                <div class="block lg:hidden pr-4">
+                    <button id="nav-toggle" class="flex items-center px-3 py-2 border rounded text-gray-500 border-gray-600 hover:text-gray-900 hover:border-teal-500 appearance-none focus:outline-none">
+                        <svg class="fill-current h-3 w-3" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <title>Menu</title>
+                            <path d="M0 3h20v2H0V3zm0 6h20v2H0V9zm0 6h20v2H0v-2z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full flex-grow lg:flex lg:items-center lg:w-auto hidden lg:block mt-2 lg:mt-0 bg-white z-20" id="nav-content">
+            <ul class="list-reset lg:flex flex-1 items-center px-4 md:px-0">
+                <li class="mr-6 my-2 md:my-0">
+                    <a href="#" class="block py-1 md:py-3 pl-1 align-middle text-pink-600 no-underline hover:text-gray-900 border-b-2 border-orange-600 hover:border-orange-600">
+                        <i class="fas fa-home fa-fw mr-3 text-pink-600"></i><span class="pb-1 md:pb-0 text-sm">Home</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+    </div>
+</nav>
+
+<!--Container-->
+<div class="container w-full mx-auto pt-20">
+
+    <div class="w-full px-4 md:px-0 md:mt-8 mb-16 text-gray-800 leading-normal">
+
+        <!--Console Content-->
+
+        <div class="flex flex-wrap">
+            <div class="w-full md:w-1/2 xl:w-1/2 p-3">
+                <!--Metric Card-->
+                <div class="bg-white border rounded shadow p-2">
+                    <div class="flex flex-row items-center">
+                        <div class="flex-shrink pr-4">
+                            <div class="rounded p-3 bg-green-600"><i class="fa fa-book fa-2x fa-fw fa-inverse"></i></div>
+                        </div>
+                        <div class="flex-1 text-right md:text-center">
+                            <h5 class="font-bold text-gray-500">Books Read</h5>
+                            <h3 class="font-bold text-3xl">{{ .BooksRead }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <!--/Metric Card-->
+            </div>
+            <div class="w-full md:w-1/2 xl:w-1/2 p-3">
+                <!--Metric Card-->
+                <div class="bg-white border rounded shadow p-2">
+                    <div class="flex flex-row items-center">
+                        <div class="flex-shrink pr-4">
+                            <div class="rounded p-3 bg-green-600"><i class="fas fa-clock fa-2x fa-fw fa-inverse"></i></div>
+                        </div>
+                        <div class="flex-1 text-right md:text-center">
+                            <h5 class="font-bold text-gray-500">Book Reading Time</h5>
+                            <h3 class="font-bold text-3xl">{{ .BookReadingTime }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <!--/Metric Card-->
+            </div>
+            <div class="w-full md:w-1/2 xl:w-1/2 p-3">
+                <!--Metric Card-->
+                <div class="bg-white border rounded shadow p-2">
+                    <div class="flex flex-row items-center">
+                        <div class="flex-shrink pr-4">
+                            <div class="rounded p-3 bg-blue-600"><i class="fas fa-newspaper fa-2x fa-fw fa-inverse"></i></div>
+                        </div>
+                        <div class="flex-1 text-right md:text-center">
+                            <h5 class="font-bold text-gray-500">Articles Read</h5>
+                            <h3 class="font-bold text-3xl">{{ .ArticlesRead }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <!--/Metric Card-->
+            </div>
+            <div class="w-full md:w-1/2 xl:w-1/2 p-3">
+                <!--Metric Card-->
+                <div class="bg-white border rounded shadow p-2">
+                    <div class="flex flex-row items-center">
+                        <div class="flex-shrink pr-4">
+                            <div class="rounded p-3 bg-indigo-600"><i class="fas fa-tasks fa-2x fa-fw fa-inverse"></i></div>
+                        </div>
+                        <div class="flex-1 text-right md:text-center">
+                            <h5 class="font-bold text-gray-500">Article Reading Time</h5>
+                            <h3 class="font-bold text-3xl">{{ .ArticleReadingTime }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <!--/Metric Card-->
+            </div>
+        </div>
+
+        <!--Divider-->
+        <hr class="border-b-2 border-gray-400 my-8 mx-4">
+
+        <div class="flex flex-row flex-wrap flex-grow mt-2">
+
+            <div class="w-full md:w-1/2 p-3">
+                <!--Graph Card-->
+                <div class="bg-white border rounded shadow">
+                    <div class="border-b p-3">
+                        <h5 class="font-bold text-gray-600">Books & Articles</h5>
+                    </div>
+                    <div class="p-5">
+                        <canvas id="chartjs-7" class="chartjs" width="undefined" height="undefined"></canvas>
+                        <script>
+                            new Chart(document.getElementById("chartjs-7"), {
+                                "type": "bar",
+                                "data": {
+                                    "labels": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+                                    "datasets": [{
+                                        "label": "Books Read",
+                                        "data": {{ .BookReadCount }},
+                                        "borderColor": "rgb(255, 99, 132)",
+                                        "backgroundColor": "rgba(255, 99, 132, 0.2)"
+                                    }, {
+                                        "label": "Articles Read",
+                                        "data": {{ .ArticleReadCount }},
+                                        "type": "line",
+                                        "fill": false,
+                                        "borderColor": "rgb(54, 162, 235)"
+                                    }]
+                                },
+                                "options": {
+                                    "scales": {
+                                        "yAxes": [{
+                                            "ticks": {
+                                                "beginAtZero": true
+                                            }
+                                        }]
+                                    }
+                                }
+                            });
+                        </script>
+                    </div>
+                </div>
+                <!--/Graph Card-->
+            </div>
+
+            <div class="w-full md:w-1/2 p-3">
+                <!--Graph Card-->
+                <div class="bg-white border rounded shadow">
+                    <div class="border-b p-3">
+                        <h5 class="font-bold text-gray-600">Seconds Reading</h5>
+                    </div>
+                    <div class="p-5">
+                        <canvas id="chartjs-0" class="chartjs" width="undefined" height="undefined"></canvas>
+                        <script>
+                            new Chart(document.getElementById("chartjs-0"), {
+                                "type": "line",
+                                "data": {
+                                    "labels": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+                                    "datasets": [{
+                                        "label": "Seconds Reading",
+                                        "data": {{ .TotalReadingTime }},
+                                        "fill": false,
+                                        "borderColor": "rgb(75, 192, 192)",
+                                        "lineTension": 0.1
+                                    }]
+                                },
+                                "options": {}
+                            });
+                        </script>
+                    </div>
+                </div>
+                <!--/Graph Card-->
+            </div>
+
+            <div class="w-full p-3">
+                <!--Table Card-->
+                <div class="bg-white border rounded shadow">
+                    <div class="border-b p-3">
+                        <h5 class="font-bold text-gray-600">Books Finished</h5>
+                    </div>
+                    <div class="p-5">
+                        <table class="w-full p-5 text-gray-700">
+                            <thead>
+                            <tr>
+                                <th class="text-left text-blue-900">Title</th>
+                                <th class="text-left text-blue-900">Author</th>
+                                <th class="text-left text-blue-900">Duration</th>
+                                <th class="text-left text-blue-900">Sessions</th>
+                                <th class="text-left text-blue-900">Month</th>
+                            </tr>
+                            </thead>
+
+                            <tbody>
+                            {{ range .BooksFinished }}
+                            <tr>
+                                <td><b>{{ .Title }}</b></td>
+                                <td><b>{{ .Author }}</b></td>
+                                <td>{{ .Duration }}</td>
+                                <td>{{ .Sessions }}</td>
+                                <td>{{ .Month }}</td>
+                            </tr>
+                            {{ end }}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!--/table Card-->
+            </div>
+
+            <div class="w-full p-3">
+                <!--Table Card-->
+                <div class="bg-white border rounded shadow">
+                    <div class="border-b p-3">
+                        <h5 class="font-bold uppercase text-gray-600">Table</h5>
+                    </div>
+                    <div class="p-5">
+                        <table class="w-full p-5 text-gray-700">
+                            <thead>
+                            <tr>
+                                <th class="text-left text-blue-900">Title</th>
+                                <th class="text-left text-blue-900">URL</th>
+                                <th class="text-left text-blue-900">Duration</th>
+                                <th class="text-left text-blue-900">Month</th>
+                            </tr>
+                            </thead>
+
+                            <tbody>
+                            {{ range .ArticlesFinished }}
+                            <tr>
+                                <td><b>{{ .Title }}</b></td>
+                                <td><a href="{{ .URL }}">{{ .URL }}</a></td>
+                                <td>{{ .Duration }}</td>
+                                <td>{{ .Month }}</td>
+                            </tr>
+                            {{ end }}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!--/table Card-->
+            </div>
+        </div>
+
+        <!--/ Console Content-->
+    </div>
+
+</div>
+<!--/container-->
+
+<footer class="bg-white border-t border-gray-400 shadow">
+    <div class="container max-w-md mx-auto flex py-8">
+
+        <div class="w-full mx-auto flex flex-wrap">
+            <div class="flex w-full md:w-1/2 ">
+                <div class="px-4">
+                    <h3 class="font-bold font-bold text-gray-900">About</h3>
+                    <p class="py-4 text-gray-600 text-sm">
+                        Proof of concept reading stats from kobo devices
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex w-full md:w-1/2">
+                <div class="px-4">
+                    <h3 class="font-bold font-bold text-gray-900">Social</h3>
+                    <ul class="list-reset items-center text-sm pt-3">
+                        <li>
+                            <a class="inline-block text-gray-600 no-underline hover:text-gray-900 hover:underline py-1" href="https://github.com/timchurchard/kobo-readstat">https://github.com/timchurchard/kobo-readstat</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</footer>
+
+</body>
+</html>
