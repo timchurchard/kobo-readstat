@@ -112,13 +112,13 @@ func Stats(out io.Writer) int {
 			fmt.Printf("Finished articles\t\t: %d\n", len(stats.ArticlesFinishedYear(year)))
 		}
 
-		fmt.Printf("Time reading books\t\t: %s\n", pkg.HumanizeDuration(booksReadDuration))
+		fmt.Printf("Time reading books\t\t: %s (hours: %s)\n", pkg.HumanizeDuration(booksReadDuration), pkg.SecondsToHoursString(booksReadSeconds))
 		if !hideArticles {
-			fmt.Printf("Time reading articles\t\t: %s\n", pkg.HumanizeDuration(articlesReadDuration))
+			fmt.Printf("Time reading articles\t\t: %s (hours: %s)\n", pkg.HumanizeDuration(articlesReadDuration), pkg.SecondsToHoursString(articlesReadSeconds))
 		}
 
 		if !hideArticles {
-			fmt.Printf("Total time reading\t\t: %s\n", pkg.HumanizeDuration(totalReadDuration))
+			fmt.Printf("Total time reading\t\t: %s (hours: %s)\n", pkg.HumanizeDuration(totalReadDuration), pkg.SecondsToHoursString(totalReadSeconds))
 		}
 
 		fmt.Println("\n----------")
@@ -129,9 +129,14 @@ func Stats(out io.Writer) int {
 			monthArticleReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", stats.ArticlesSecondsReadMonth(year, idx)))
 
 			if !hideArticles {
-				fmt.Printf("\n%s %d - Finished books: %d, articles: %d, time spend reading books: %s and articles: %s\n", months[idx], year, len(stats.BooksFinishedMonth(year, idx)), len(stats.ArticlesFinishedMonth(year, idx)), pkg.HumanizeDuration(monthBookReadDuration), pkg.HumanizeDuration(monthArticleReadDuration))
+				fmt.Printf("\n%s %d - Finished books: %d, articles: %d, time spend reading books: %s (hours: %s) and articles: %s (hours: %s)\n",
+					months[idx], year, len(stats.BooksFinishedMonth(year, idx)), len(stats.ArticlesFinishedMonth(year, idx)),
+					pkg.HumanizeDuration(monthBookReadDuration), pkg.SecondsToHoursString(stats.BooksSecondsReadMonth(year, idx)),
+					pkg.HumanizeDuration(monthArticleReadDuration), pkg.SecondsToHoursString(stats.ArticlesSecondsReadMonth(year, idx)))
 			} else {
-				fmt.Printf("\n%s %d - Finished books: %d, time spend reading books: %s\n", months[idx], year, len(stats.BooksFinishedMonth(year, idx)), pkg.HumanizeDuration(monthBookReadDuration))
+				fmt.Printf("\n%s %d - Finished books: %d, time spend reading books: %s (hours: %s)\n",
+					months[idx], year, len(stats.BooksFinishedMonth(year, idx)),
+					pkg.HumanizeDuration(monthBookReadDuration), pkg.SecondsToHoursString(stats.BooksSecondsReadMonth(year, idx)))
 			}
 
 			if showBooks {
