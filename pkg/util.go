@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+func SecondsToHoursString(seconds int) string {
+	return fmt.Sprintf("%.2f", float32(seconds)/3600.0)
+}
+
 // HumanizeDuration humanizes time.Duration output to a meaningful value,
 // golang's default “time.Duration“ output is badly formatted and unreadable.
 // From: https://gist.github.com/harshavardhana/327e0577c4fed9211f65
