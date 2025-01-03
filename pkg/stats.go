@@ -245,9 +245,7 @@ func (s Stats) BooksSecondsReadMonth(year, month int) int {
 	result := 0
 
 	for idx := range s.Years[year].Months[month].Books {
-		for jdx := range s.Years[year].Months[month].Books[idx].Reads {
-			result += s.Years[year].Months[month].Books[idx].Reads[jdx].Duration
-		}
+		result += s.Years[year].Months[month].Books[idx].ReadSecondsInMonth(year, month)
 	}
 
 	return result
@@ -277,9 +275,7 @@ func (s Stats) ArticlesSecondsReadMonth(year, month int) int {
 	result := 0
 
 	for idx := range s.Years[year].Months[month].Articles {
-		for jdx := range s.Years[year].Months[month].Articles[idx].Reads {
-			result += s.Years[year].Months[month].Articles[idx].Reads[jdx].Duration
-		}
+		result += s.Years[year].Months[month].Articles[idx].ReadSecondsInMonth(year, month)
 	}
 
 	return result

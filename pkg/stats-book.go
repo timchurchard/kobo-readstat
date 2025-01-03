@@ -71,6 +71,20 @@ func (b StatsBook) ReadSecondsInYear(year int) int {
 	return result
 }
 
+func (b StatsBook) ReadSecondsInMonth(year, month int) int {
+	result := 0
+
+	for idx := range b.Reads {
+		readTime, _ := time.Parse(StorageTimeFmt, b.Reads[idx].Time)
+
+		if year == readTime.Year() && month == int(readTime.Month()) {
+			result += b.Reads[idx].Duration
+		}
+	}
+
+	return result
+}
+
 func (b StatsBook) ReadSecondsInWeek(year int, week int) int {
 	result := 0
 
