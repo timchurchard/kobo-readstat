@@ -30,6 +30,7 @@ func Stats(out io.Writer) int {
 		usageShowBookEnds  = "Show book started and finished reading"
 		usageShowBookmarks = "Show book annotations, notes and highlights"
 	)
+
 	var (
 		storageFn     string
 		mode          string
