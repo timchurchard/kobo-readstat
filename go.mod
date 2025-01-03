@@ -4,6 +4,7 @@ go 1.23
 
 require (
 	github.com/ncruces/go-sqlite3 v0.21.3
+	github.com/snabb/isoweek v1.0.3
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/mock v0.5.0
 )

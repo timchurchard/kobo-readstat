@@ -27,7 +27,10 @@ func main() {
 	case "stats":
 		os.Exit(cmd.Stats(os.Stdout))
 
-	//case "gui":
+	case "goals":
+		os.Exit(cmd.Goals(os.Stdout))
+
+	// case "gui":
 	//	os.Exit(cmd.Gui(os.Stdout))
 
 	default:

@@ -14,14 +14,8 @@ import (
 // Stats command reads local storage and produces stats
 func Stats(out io.Writer) int {
 	const (
-		defaultEmpty   = ""
-		defaultStorage = "./readstat.json"
-		defaultYear    = 2024
-
-		usageStoragePath = "Path to local storage default: " + defaultStorage
-		usageMode        = "Mode html or text (default text)"
-		usageYear        = "Year to generate stats for (default 2023)"
-		usageOutPath     = "Path to output file (required for mode html)"
+		usageMode    = "Mode html or text (default text)"
+		usageOutPath = "Path to output file (required for mode html)"
 
 		usageShowBooks     = "Show book title and details"
 		usageShowArticles  = "Show pocket article title and details"
@@ -168,7 +162,8 @@ func Stats(out io.Writer) int {
 
 			if showArticles && !hideArticles {
 				for _, finishedArticle := range stats.ArticlesFinishedMonth(year, idx) {
-					fmt.Printf("\t finished article: %s - %s (%s)\n", finishedArticle.Title, finishedArticle.Author, finishedArticle.URL)
+					fmt.Printf("\t finished article: %s - %s (%s) Finished: %s\n",
+						finishedArticle.Title, finishedArticle.Author, finishedArticle.URL, finishedArticle.FinishedTime)
 				}
 			}
 		}

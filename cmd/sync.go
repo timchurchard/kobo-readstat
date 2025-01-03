@@ -11,13 +11,6 @@ import (
 
 // Sync command reads a Kobo database and creates/updates local storage
 func Sync(out io.Writer) int {
-	const (
-		defaultEmpty   = ""
-		defaultStorage = "./readstat.json"
-
-		usageDatabasePath = "Path to /media/kobo/.kobo/KoboReader.sqlite"
-		usageStoragePath  = "Path to local storage default: " + defaultStorage
-	)
 	var (
 		databaseFn string
 		storageFn  string

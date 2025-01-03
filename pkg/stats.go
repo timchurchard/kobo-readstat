@@ -27,6 +27,7 @@ type Stats struct {
 
 type YearStats struct {
 	Months map[int]MonthStats `json:"months"`
+	Weeks  map[int]MonthStats `json:"weeks"`
 }
 
 type MonthStats struct {
@@ -83,10 +84,20 @@ func NewStats(storage Storage) Stats {
 			if _, exists := result.Years[eventTime.Year()]; !exists {
 				result.Years[eventTime.Year()] = YearStats{
 					Months: make(map[int]MonthStats),
+					Weeks:  make(map[int]MonthStats),
 				}
 
-				for idx := 0; idx < 12; idx++ {
-					result.Years[eventTime.Year()].Months[idx+1] = MonthStats{
+				for idx := 1; idx <= 12; idx++ {
+					result.Years[eventTime.Year()].Months[idx] = MonthStats{
+						FinishedBooks:    make(map[string]*StatsBook),
+						FinishedArticles: make(map[string]*StatsBook),
+						Books:            make(map[string]*StatsBook),
+						Articles:         make(map[string]*StatsBook),
+					}
+				}
+
+				for idx := 1; idx <= 53; idx++ {
+					result.Years[eventTime.Year()].Weeks[idx] = MonthStats{
 						FinishedBooks:    make(map[string]*StatsBook),
 						FinishedArticles: make(map[string]*StatsBook),
 						Books:            make(map[string]*StatsBook),
@@ -116,6 +127,8 @@ func NewStats(storage Storage) Stats {
 
 	// Content to Months
 	for cid := range result.Content {
+		book := result.Content[cid]
+
 		if result.Content[cid].IsFinished && result.Content[cid].FinishedTime != "" {
 			finishedTime, err := time.Parse(StorageTimeFmt, result.Content[cid].FinishedTime)
 			if err != nil {
@@ -124,16 +137,23 @@ func NewStats(storage Storage) Stats {
 
 			finishedYear := finishedTime.Year()
 			finishedMonth := int(finishedTime.Month())
+			finishedYearWeek, finishedWeek := finishedTime.ISOWeek() // Note: readYearWeek may differ from readYear e.g. the timestamp is 2024-12-30 but that is in week 1 of 2025
 
 			if result.Content[cid].IsBook {
 				if _, exists := result.Years[finishedYear].Months[finishedMonth].FinishedBooks[cid]; !exists {
-					book := result.Content[cid]
 					result.Years[finishedYear].Months[finishedMonth].FinishedBooks[cid] = &book
+				}
+
+				if _, exists := result.Years[finishedYearWeek].Weeks[finishedWeek].FinishedBooks[cid]; !exists {
+					result.Years[finishedYearWeek].Weeks[finishedWeek].FinishedBooks[cid] = &book
 				}
 			} else {
 				if _, exists := result.Years[finishedYear].Months[finishedMonth].FinishedArticles[cid]; !exists {
-					book := result.Content[cid]
 					result.Years[finishedYear].Months[finishedMonth].FinishedArticles[cid] = &book
+				}
+
+				if _, exists := result.Years[finishedYearWeek].Weeks[finishedWeek].FinishedArticles[cid]; !exists {
+					result.Years[finishedYearWeek].Weeks[finishedWeek].FinishedArticles[cid] = &book
 				}
 			}
 		}
@@ -146,16 +166,23 @@ func NewStats(storage Storage) Stats {
 
 			readYear := readTime.Year()
 			readMonth := int(readTime.Month())
+			readYearWeek, readWeek := readTime.ISOWeek() // Note: readYearWeek may differ from readYear e.g. the timestamp is 2024-12-30 but that is in week 1 of 2025
 
 			if result.Content[cid].IsBook {
 				if _, exists := result.Years[readYear].Months[readMonth].Books[cid]; !exists {
-					book := result.Content[cid]
 					result.Years[readYear].Months[readMonth].Books[cid] = &book
+				}
+
+				if _, exists := result.Years[readYearWeek].Weeks[readWeek].Books[cid]; !exists {
+					result.Years[readYearWeek].Weeks[readWeek].Books[cid] = &book
 				}
 			} else {
 				if _, exists := result.Years[readYear].Months[readMonth].Articles[cid]; !exists {
-					book := result.Content[cid]
 					result.Years[readYear].Months[readMonth].Articles[cid] = &book
+				}
+
+				if _, exists := result.Years[readYearWeek].Weeks[readWeek].Articles[cid]; !exists {
+					result.Years[readYearWeek].Weeks[readWeek].Articles[cid] = &book
 				}
 			}
 		}
@@ -226,6 +253,16 @@ func (s Stats) BooksSecondsReadMonth(year, month int) int {
 	return result
 }
 
+func (s Stats) BooksSecondsReadWeek(year, week int) int {
+	result := 0
+
+	for idx := range s.Years[year].Weeks[week].Books {
+		result += s.Years[year].Weeks[week].Books[idx].ReadSecondsInWeek(year, week)
+	}
+
+	return result
+}
+
 func (s Stats) ArticlesSecondsReadYear(year int) int {
 	result := 0
 
@@ -243,6 +280,16 @@ func (s Stats) ArticlesSecondsReadMonth(year, month int) int {
 		for jdx := range s.Years[year].Months[month].Articles[idx].Reads {
 			result += s.Years[year].Months[month].Articles[idx].Reads[jdx].Duration
 		}
+	}
+
+	return result
+}
+
+func (s Stats) ArticleSecondsReadWeek(year, week int) int {
+	result := 0
+
+	for idx := range s.Years[year].Weeks[week].Articles {
+		result += s.Years[year].Weeks[week].Articles[idx].ReadSecondsInWeek(year, week)
 	}
 
 	return result
