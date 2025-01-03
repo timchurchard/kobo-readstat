@@ -15,3 +15,10 @@ cover: generate
 	CGO_ENABLED=1 go test -failfast -count=2 --race -coverprofile=cover.out -coverpkg=./... ./...
 	cat cover.out | grep -v "_mock.go" > cover.nomocks.out
 	go tool cover -func cover.nomocks.out
+
+fmt:
+	gofumpt -l -w .
+	go mod tidy -v
+	goimports -w .
+	golangci-lint run --fix
+
