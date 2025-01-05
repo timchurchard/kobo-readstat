@@ -288,8 +288,12 @@ func (k koboDatabase) Events() ([]KoboEvent, error) {
 								End:       time.Unix(int64(startUnix+secondsRead), 0),
 							},
 						}
-						result = append(result, KoboEvent{BookID: fn, EventType: ReadEvent, Time: time.Time{}, ReadingSessions: sessions})
+						result = append(result, KoboEvent{BookID: fn, EventType: ReadEvent, Time: lastTime, ReadingSessions: sessions})
 					}
+				} else {
+					// Else the Blob did not include reading time. It seems a software update has removed that
+					// Fallback using the content read percent = 100 and words
+					result = append(result, KoboEvent{BookID: fn, EventType: GuessReadEvent, Time: lastTime})
 				}
 			}
 
@@ -374,7 +378,10 @@ func readBlobColumn(stmt *sqlite3.Stmt, i int) (map[string]interface{}, error) {
 
 		switch {
 		case err.Error() == "unimplemented type 44":
-			return hacksType44(colData)
+			o, err := hacksType44(colData)
+			if o != nil {
+				return o, err
+			}
 
 		case err.Error() == "unimplemented type 20":
 			/*cID := stmt.ColumnText(4)

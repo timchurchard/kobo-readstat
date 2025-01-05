@@ -10,7 +10,7 @@ import (
 type Storage interface {
 	Save() error
 
-	AddContent(fn, title, author, url string, words int, book, finished bool)
+	AddContent(fn, title, author, url string, words int, book, finished bool, percent int)
 	AddDevice(device, model string)
 	AddEvent(fn, device, name string, t time.Time, duration int)
 
@@ -132,10 +132,15 @@ func (s *JSONStorage) Save() error {
 	return os.WriteFile(s.fn, storageBytes, 0o644)
 }
 
-func (s *JSONStorage) AddContent(fn, title, author, url string, words int, book, finished bool) {
+func (s *JSONStorage) AddContent(fn, title, author, url string, words int, book, finished bool, percent int) {
 	previouslyFinished := false
 	if _, ok := s.ContentMap[fn]; ok {
 		previouslyFinished = s.ContentMap[fn].IsFinished
+	}
+
+	if !book && percent == 100 {
+		// Pocket articles work around where finished column is false but progress is 100%
+		finished = true
 	}
 
 	s.ContentMap[fn] = StorageContent{

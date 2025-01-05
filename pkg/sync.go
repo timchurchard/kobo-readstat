@@ -1,6 +1,12 @@
 package pkg
 
+import (
+	"time"
+)
+
 func Sync(db KoboDatabase, storage Storage) error {
+	const readingSpeedWPM = 180 / 60 // reading speed words-per-minute (in seconds) to guess reading time by word count (should be ~200)
+
 	contents, err := db.Contents()
 	if err != nil {
 		return err
@@ -31,7 +37,8 @@ func Sync(db KoboDatabase, storage Storage) error {
 
 	for cIdx := range contents {
 		storage.AddContent(contents[cIdx].ID, contents[cIdx].Title, contents[cIdx].Author,
-			contents[cIdx].URL, contents[cIdx].TotalWords(), contents[cIdx].IsBook, contents[cIdx].Finished)
+			contents[cIdx].URL, contents[cIdx].TotalWords(), contents[cIdx].IsBook,
+			contents[cIdx].Finished, contents[cIdx].ProgressPercent)
 	}
 
 	for sIdx := range shelf {
@@ -49,6 +56,30 @@ func Sync(db KoboDatabase, storage Storage) error {
 	}
 
 	for eIdx := range events {
+		if events[eIdx].EventType == GuessReadEvent {
+			// Guess Read Events (for pocket articles that are finished but do not have reading seconds)
+			startUnix := int(events[eIdx].Time.Unix())
+
+			secondsRead := 0
+			for cIdx := range contents {
+				if contents[cIdx].ID == events[eIdx].BookID {
+					secondsRead = contents[cIdx].TotalWords() / readingSpeedWPM
+
+					break
+				}
+			}
+
+			events[eIdx].EventType = ReadEvent
+			events[eIdx].ReadingSessions = []KoboEventReadingSession{
+				{
+					UnixStart: startUnix,
+					UnixEnd:   startUnix + secondsRead,
+					Start:     time.Unix(int64(startUnix), 0),
+					End:       time.Unix(int64(startUnix+secondsRead), 0),
+				},
+			}
+		}
+
 		if events[eIdx].EventType == ReadEvent {
 			for sIdx := range events[eIdx].ReadingSessions {
 				durationSecs := events[eIdx].ReadingSessions[sIdx].UnixEnd - events[eIdx].ReadingSessions[sIdx].UnixStart

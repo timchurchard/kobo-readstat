@@ -30,7 +30,11 @@ func hacksType44(data []byte) (map[string]interface{}, error) {
 				extraDataReadingSeconds: v / 100000, // hardcoded 100000 division to seconds
 			}, nil
 		}
+
+		return map[string]interface{}{
+			"ContentType": pocketMime,
+		}, nil
 	}
 
-	return map[string]interface{}{}, nil
+	return nil, nil
 }

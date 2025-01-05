@@ -20,7 +20,6 @@ func Stats(out io.Writer) int {
 		usageShowBooks     = "Show book title and details"
 		usageShowArticles  = "Show pocket article title and details"
 		usageHideArticles  = "Hide pocket articles even time spent"
-		usageShowSessions  = "Show reading sessions"
 		usageShowBookEnds  = "Show book started and finished reading"
 		usageShowBookmarks = "Show book annotations, notes and highlights"
 	)
