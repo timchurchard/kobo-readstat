@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/snabb/isoweek"
@@ -15,8 +17,9 @@ func Goals(out io.Writer) int {
 	const ()
 
 	var (
-		storageFn string
-		year      int
+		storageFn    string
+		year         int
+		showSessions bool
 	)
 
 	flag.StringVar(&storageFn, "storage", defaultStorage, usageStoragePath)
@@ -24,6 +27,8 @@ func Goals(out io.Writer) int {
 
 	flag.IntVar(&year, "year", defaultYear, usageYear)
 	flag.IntVar(&year, "y", defaultYear, usageYear)
+
+	flag.BoolVar(&showSessions, "showsessions", false, usageShowSessions)
 
 	flag.Usage = func() {
 		fmt.Fprintf(out, "Usage of %s %s:\n", os.Args[0], os.Args[1])
@@ -75,6 +80,16 @@ func Goals(out io.Writer) int {
 			weekBooksRead, pkg.SecondsToHoursString(weekBookSeconds),
 			weekArticleRead, pkg.SecondsToHoursString(weekArticleSeconds))
 
+		if showSessions {
+			fmt.Println("|    |Monday|Tuesda|Wednes|Thursd|Friday|Saturd|Sunday|        |")
+
+			for idx := 0; idx < 24; idx++ {
+				fmt.Println(readsInWeekToTableLine(stats, weekStartTime, idx))
+			}
+
+			fmt.Println("")
+		}
+
 		if weekStartTime.Unix() > time.Now().Unix() {
 			break
 		}
@@ -99,4 +114,68 @@ func calculateAverage(list []float32) float32 {
 	}
 
 	return total / float32(len(list))
+}
+
+// readsInWeekToTableLine takes the week stats and looks for reading sessions in hour
+// returns a string to match the table with 6 characters per (hour) e.g |0800|------|      | (indicating read on Mon not Tues)
+func readsInWeekToTableLine(stats pkg.Stats, weekStart time.Time, hour int) string {
+	var secs int
+
+	line := fmt.Sprintf("|%02d00|      |      |      |      |      |      |      |", hour)
+	year, week := weekStart.ISOWeek()
+	totalSeconds := 0
+
+	for idx := range stats.Years[year].Weeks[week].Books {
+		for jdx := range stats.Years[year].Weeks[week].Books[idx].Reads {
+			line, secs = bookReadToLineUpdate(line, stats.Years[year].Weeks[week].Books[idx].Reads[jdx], year, week, hour)
+			totalSeconds += secs
+		}
+	}
+
+	for idx := range stats.Years[year].Weeks[week].Articles {
+		for jdx := range stats.Years[year].Weeks[week].Articles[idx].Reads {
+			line, secs = bookReadToLineUpdate(line, stats.Years[year].Weeks[week].Articles[idx].Reads[jdx], year, week, hour)
+			totalSeconds += secs
+		}
+	}
+
+	totalDuration := time.Duration(totalSeconds) * time.Second
+
+	return line + fmt.Sprintf("%8s|", totalDuration.String())
+}
+
+func bookReadToLineUpdate(line string, read pkg.StatsRead, year, week, hour int) (string, int) {
+	const readSymbol = "-"
+
+	// Offsets in the line for the day of the week
+	offsets := map[time.Weekday]int{
+		1: 7 - 1, // Monday is day 1 and starts on character 7
+		2: 7*2 - 1,
+		3: 7*3 - 1,
+		4: 7*4 - 1,
+		5: 7*5 - 1,
+		6: 7*6 - 1,
+		0: 7*7 - 1, // Sunday is day 0 (from time.Time WeekDay()) but rightmost on the line
+	}
+
+	readTime, _ := time.Parse(pkg.StorageTimeFmt, read.Time)
+	readYear, readWeek := readTime.ISOWeek()
+	secs := 0
+
+	if year == readYear && week == readWeek && hour == readTime.Hour() {
+		startMinute := min(max(readTime.Minute()/10, 0), 6)
+		startOffset := offsets[readTime.Weekday()] + startMinute
+
+		count := int(math.Ceil(float64(read.Duration) / 600))
+
+		for startMinute+count > 6 {
+			count -= 1
+		}
+
+		line = line[0:startOffset] + strings.Repeat(readSymbol, count) + line[startOffset+count:]
+
+		secs = min(read.Duration, 3600)
+	}
+
+	return line, secs
 }

@@ -117,7 +117,7 @@ func TestSync(t *testing.T) {
 		db.EXPECT().Bookmarks().Return(aaaBookmarks, nil)
 
 		storage := NewMockStorage(ctrl)
-		storage.EXPECT().AddContent("aaa", "Title AAA", "Author AAA", "aaa.com", 1234, true, false)
+		storage.EXPECT().AddContent("aaa", "Title AAA", "Author AAA", "aaa.com", 1234, true, false, 69)
 		storage.EXPECT().AddEvent("aaa", "xxx", "Read", time.Time{}, 1111)
 		storage.EXPECT().AddDevice("xxx", "yyy")
 		storage.EXPECT().AddShelf("AAA", "BBB", "CCC", "DDD", false)

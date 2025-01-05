@@ -11,6 +11,8 @@ const (
 	usageDatabasePath = "Path to /media/kobo/.kobo/KoboReader.sqlite"
 
 	usageYear = "Year to generate stats for (default this year)"
+
+	usageShowSessions = "Show reading sessions"
 )
 
 var defaultYear int

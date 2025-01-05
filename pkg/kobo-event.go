@@ -33,6 +33,7 @@ const (
 	KoboTimeFmt = "2006-01-02T15:04:05.000"
 	// koboTimeSample = "2023-12-19T11:42:00.000"
 
+	GuessReadEvent  KoboEventType = "GuessRead"
 	ReadEvent       KoboEventType = "Read"
 	Progress25Event KoboEventType = "25%"
 	Progress50Event KoboEventType = "50%"
