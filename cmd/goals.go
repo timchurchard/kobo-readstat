@@ -87,7 +87,7 @@ func Goals(out io.Writer) int {
 				fmt.Println(readsInWeekToTableLine(stats, weekStartTime, idx))
 			}
 
-			fmt.Println("")
+			fmt.Println(readsInWeekDayLine(stats, year, week))
 		}
 
 		if weekStartTime.Unix() > time.Now().Unix() {
@@ -178,4 +178,53 @@ func bookReadToLineUpdate(line string, read pkg.StatsRead, year, week, hour int)
 	}
 
 	return line, secs
+}
+
+func readsInWeekDayLine(stats pkg.Stats, year int, week int) string {
+	dailySecs := []int{
+		readsInWeekDay(stats, year, week, 1), readsInWeekDay(stats, year, week, 2),
+		readsInWeekDay(stats, year, week, 3), readsInWeekDay(stats, year, week, 4),
+		readsInWeekDay(stats, year, week, 5), readsInWeekDay(stats, year, week, 6),
+		readsInWeekDay(stats, year, week, 0),
+	}
+
+	dailyAvgDur := time.Duration(int(calculateAverage([]float32{
+		float32(dailySecs[0]), float32(dailySecs[1]), float32(dailySecs[2]),
+		float32(dailySecs[3]), float32(dailySecs[4]), float32(dailySecs[5]),
+		float32(dailySecs[6]),
+	}))) * time.Second
+
+	return fmt.Sprintf("|    |%s|%s|%s|%s|%s|%s|%s|        | Daily average %s\n\n",
+		fmtSecondsToSixChar(dailySecs[0]), fmtSecondsToSixChar(dailySecs[1]), fmtSecondsToSixChar(dailySecs[2]),
+		fmtSecondsToSixChar(dailySecs[3]), fmtSecondsToSixChar(dailySecs[4]), fmtSecondsToSixChar(dailySecs[5]),
+		fmtSecondsToSixChar(dailySecs[6]),
+		dailyAvgDur.String(),
+	)
+}
+
+func fmtSecondsToSixChar(secs int) string {
+	dur := time.Duration(secs) * time.Second
+	if len(dur.String()) > 6 {
+		return fmt.Sprintf("%6s", dur.String()[0:5])
+	}
+
+	return fmt.Sprintf("%6s", dur.String())
+}
+
+func readsInWeekDay(read pkg.Stats, year, week, day int) int {
+	secs := 0
+
+	for idx := range read.Years[year].Weeks[week].Books {
+		for jdx := range read.Years[year].Weeks[week].Books[idx].Reads {
+			readTime, _ := time.Parse(pkg.StorageTimeFmt, read.Years[year].Weeks[week].Books[idx].Reads[jdx].Time)
+			readYear, readWeek := readTime.ISOWeek()
+			readDay := int(readTime.Weekday())
+
+			if year == readYear && week == readWeek && day == readDay {
+				secs += read.Years[year].Weeks[week].Books[idx].Reads[jdx].Duration
+			}
+		}
+	}
+
+	return secs
 }
