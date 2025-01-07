@@ -226,5 +226,17 @@ func readsInWeekDay(read pkg.Stats, year, week, day int) int {
 		}
 	}
 
+	for idx := range read.Years[year].Weeks[week].Articles {
+		for jdx := range read.Years[year].Weeks[week].Articles[idx].Reads {
+			readTime, _ := time.Parse(pkg.StorageTimeFmt, read.Years[year].Weeks[week].Articles[idx].Reads[jdx].Time)
+			readYear, readWeek := readTime.ISOWeek()
+			readDay := int(readTime.Weekday())
+
+			if year == readYear && week == readWeek && day == readDay {
+				secs += read.Years[year].Weeks[week].Articles[idx].Reads[jdx].Duration
+			}
+		}
+	}
+
 	return secs
 }
