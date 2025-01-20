@@ -165,7 +165,7 @@ func Stats(out io.Writer) int {
 					readSeconds := book.ReadSecondsInMonth(year, idx)
 
 					if readSeconds > 0 {
-						if exists, _ := finishedStartedBooks[book.BookID]; exists {
+						if exists := finishedStartedBooks[book.BookID]; exists {
 							continue
 						}
 
