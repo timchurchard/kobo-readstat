@@ -55,7 +55,7 @@ func Stats(out io.Writer) int {
 	flag.BoolVar(&hideArticles, "hidearticles", false, usageHideArticles)
 
 	flag.BoolVar(&showSessions, "showsessions", false, usageShowSessions)
-	flag.BoolVar(&showBookEnds, "showbookends", false, usageShowBookEnds)
+	flag.BoolVar(&showBookEnds, "showbookends", true, usageShowBookEnds)
 	flag.BoolVar(&showBookmarks, "showbookmarks", false, usageShowBookmarks)
 
 	flag.Usage = func() {
@@ -121,6 +121,7 @@ func Stats(out io.Writer) int {
 		for idx := 1; idx <= 12; idx++ {
 			monthBookReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", stats.BooksSecondsReadMonth(year, idx)))
 			monthArticleReadDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", stats.ArticlesSecondsReadMonth(year, idx)))
+			finishedStartedBooks := map[string]bool{}
 
 			if !hideArticles {
 				fmt.Printf("\n%s %d - Finished books: %d, articles: %d, time spend reading books: %s (hours: %s) and articles: %s (hours: %s)\n",
@@ -135,6 +136,8 @@ func Stats(out io.Writer) int {
 
 			if showBooks {
 				for _, finishedBook := range stats.BooksFinishedMonth(year, idx) {
+					finishedStartedBooks[finishedBook.BookID] = true
+
 					duration := time.Duration(finishedBook.ReadSeconds()) * time.Second
 					fmt.Printf("\t finished book: %s - %s (Duration: %s over %d Sessions)", finishedBook.Title, finishedBook.Author, duration, finishedBook.NumSessions())
 
@@ -154,6 +157,50 @@ func Stats(out io.Writer) int {
 					if showBookmarks {
 						for jdx := range finishedBook.Bookmarks {
 							fmt.Printf("\t\t%s: %s\n", finishedBook.Bookmarks[jdx].Type, finishedBook.Bookmarks[jdx].Text)
+						}
+					}
+				}
+
+				for _, book := range stats.Years[year].Months[idx].Books {
+					readSeconds := book.ReadSecondsInMonth(year, idx)
+
+					if readSeconds > 0 {
+						if exists := finishedStartedBooks[book.BookID]; exists {
+							continue
+						}
+
+						if book.IsFinished {
+							continue
+						}
+
+						finishedStartedBooks[book.BookID] = true
+
+						duration := time.Duration(readSeconds) * time.Second
+						readSessions := book.NumSessionsInMonth(year, idx)
+
+						if firstReadTime, _ := time.Parse(pkg.StorageTimeFmt, book.FirstReadTime()); idx == int(firstReadTime.Month()) {
+							fmt.Printf("\t started book: %s - %s (Duration: %s over %d Sessions)", book.Title, book.Author, duration, readSessions)
+						} else {
+							fmt.Printf("\t continued book: %s - %s (Duration: %s over %d Sessions)", book.Title, book.Author, duration, readSessions)
+						}
+
+						if showBookEnds {
+							fmt.Printf(" Started: %s\n", formatTime(book.FirstReadTime()))
+						} else {
+							fmt.Printf("\n")
+						}
+
+						if showSessions {
+							for jdx := range book.Reads {
+								duration = time.Duration(book.Reads[jdx].Duration) * time.Second
+								fmt.Printf("\t\tAt %s for %s\n", book.Reads[jdx].Time, duration)
+							}
+						}
+
+						if showBookmarks {
+							for jdx := range book.Bookmarks {
+								fmt.Printf("\t\t%s: %s\n", book.Bookmarks[jdx].Type, book.Bookmarks[jdx].Text)
+							}
 						}
 					}
 				}

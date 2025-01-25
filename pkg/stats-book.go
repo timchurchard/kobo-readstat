@@ -36,10 +36,10 @@ type StatsBookmark struct {
 }
 
 func (b StatsBook) FirstReadTime() string {
-	result := b.FinishedTime
+	result := ""
 
 	for idx := range b.Reads {
-		if b.Reads[idx].Time < result {
+		if result == "" || b.Reads[idx].Time < result {
 			result = b.Reads[idx].Time
 		}
 	}
@@ -111,6 +111,20 @@ func (b StatsBook) NumSessionsInYear(year int) int {
 		readTime, _ := time.Parse(StorageTimeFmt, b.Reads[idx].Time)
 
 		if year == readTime.Year() {
+			result++
+		}
+	}
+
+	return result
+}
+
+func (b StatsBook) NumSessionsInMonth(year, month int) int {
+	result := 0
+
+	for idx := range b.Reads {
+		readTime, _ := time.Parse(StorageTimeFmt, b.Reads[idx].Time)
+
+		if year == readTime.Year() && month == int(readTime.Month()) {
 			result++
 		}
 	}
