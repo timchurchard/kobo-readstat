@@ -1,7 +1,8 @@
 module github.com/timchurchard/kobo-readstat
 
-go 1.23
-toolchain go1.24.1
+go 1.23.0
+
+toolchain go1.23.7
 
 require (
 	github.com/ncruces/go-sqlite3 v0.25.0
