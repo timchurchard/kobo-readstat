@@ -75,12 +75,12 @@ func NewChart(stats Stats, year int, filename string) error {
 
 	articleReadCount := []int{}
 
-	totalReadTime := []float32{}
+	totalReadTime := make([]float32, 12)
 
 	for idx := 1; idx <= 12; idx++ {
 		finBooks := stats.BooksFinishedMonth(year, idx)
 		for jdx := range finBooks {
-			totalReadTime = append(totalReadTime, float32(finBooks[jdx].ReadSeconds()))
+			totalReadTime[idx-1] += float32(finBooks[jdx].ReadSeconds())
 
 			data.BooksFinished = append(data.BooksFinished, chartTemplateStat{
 				Title:    finBooks[jdx].Title,
@@ -105,6 +105,7 @@ func NewChart(stats Stats, year int, filename string) error {
 		}
 
 		bookReadCount = append(bookReadCount, len(stats.BooksFinishedMonth(year, idx)))
+
 		articleReadCount = append(articleReadCount, len(stats.ArticlesFinishedMonth(year, idx)))
 	}
 
