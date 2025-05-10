@@ -8,7 +8,7 @@ require (
 	github.com/ncruces/go-sqlite3 v0.25.0
 	github.com/snabb/isoweek v1.0.3
 	github.com/stretchr/testify v1.10.0
-	go.uber.org/mock v0.5.1
+	go.uber.org/mock v0.5.2
 )
 
 require (
